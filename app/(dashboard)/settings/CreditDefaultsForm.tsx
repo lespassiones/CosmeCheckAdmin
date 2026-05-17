@@ -14,7 +14,7 @@ const SCOPES: { value: CreditScope; label: string; hint: string }[] = [
 
 export function CreditDefaultsForm({ currentDefault }: { currentDefault: number }) {
   const [draft, setDraft] = useState(String(currentDefault));
-  const [cascade, setCascade] = useState(false);
+  const [cascade, setCascade] = useState(true);
   const [scope, setScope] = useState<CreditScope>("all");
   const [pending, startTransition] = useTransition();
 
@@ -36,10 +36,9 @@ export function CreditDefaultsForm({ currentDefault }: { currentDefault: number 
       const r = await setDefaultDailyLimit(fd);
       if (r.ok) {
         const msg = cascade
-          ? `Défaut → ${Math.floor(draftNumber)} · ${r.cascadedRows} lignes mises à jour.`
-          : `Défaut → ${Math.floor(draftNumber)}. Effectif dès demain.`;
+          ? `Défaut → ${Math.floor(draftNumber)} · ${r.cascadedRows} user(s) actif(s) mis à jour.`
+          : `Défaut → ${Math.floor(draftNumber)}. Effectif au prochain conso de chaque user.`;
         toast.success(msg);
-        setCascade(false);
       } else {
         toast.error(r.error);
       }
@@ -100,11 +99,16 @@ export function CreditDefaultsForm({ currentDefault }: { currentDefault: number 
           />
           <div className="flex-1">
             <p className="text-[13px] font-medium">
-              Appliquer aussi aux users actifs aujourd'hui
+              Appliquer à tous les users, y compris ceux actifs aujourd'hui
+              <span className="ml-2 text-[10px] uppercase tracking-wider text-emerald-700">
+                Recommandé
+              </span>
             </p>
             <p className="mt-0.5 text-[12px] text-muted-foreground">
-              Sans cette case, le changement ne touche que les futures lignes
-              (à partir de demain ou pour les users non encore actifs).
+              Activé : tout le monde passe à la nouvelle limite immédiatement.
+              Décoché : seuls les nouveaux users (et le lendemain) reçoivent
+              la nouvelle limite ; les actifs d'aujourd'hui gardent leur
+              limite actuelle jusqu'à demain.
             </p>
           </div>
         </label>
@@ -166,7 +170,7 @@ export function CreditDefaultsForm({ currentDefault }: { currentDefault: number 
           type="button"
           onClick={() => {
             setDraft(String(currentDefault));
-            setCascade(false);
+            setCascade(true);
             setScope("all");
           }}
           disabled={pending}
