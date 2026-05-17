@@ -22,12 +22,19 @@ export type UserListRow = {
   credits_limit_today: number;
 };
 
+async function getDefaultDailyLimit(sb: ReturnType<typeof supabaseAdmin>): Promise<number> {
+  const { data } = await sb.rpc("cosme_check_admin_get_credit_settings");
+  const d = (data as { default_daily_limit?: number } | null)?.default_daily_limit;
+  return typeof d === "number" && d >= 0 ? d : 100;
+}
+
 export async function listUsers(opts: {
   search?: string;
   limit?: number;
 }): Promise<UserListRow[]> {
   const sb = supabaseAdmin();
   const limit = Math.min(500, Math.max(10, opts.limit ?? 100));
+  const defaultLimit = await getDefaultDailyLimit(sb);
 
   // 1. Pull auth users — Supabase Admin API. listUsers returns ALL users in
   //    pages of up to 1000 (max). For a 1-5 k user app this is one call.
@@ -82,7 +89,7 @@ export async function listUsers(opts: {
       last_sign_in_at: u.last_sign_in_at ?? null,
       suspended_at: p?.suspended_at ?? null,
       credits_used_today: c?.used ?? 0,
-      credits_limit_today: c?.daily_limit ?? 100,
+      credits_limit_today: c?.daily_limit ?? defaultLimit,
     };
   });
 
@@ -134,6 +141,7 @@ export type UserDetail = UserListRow & {
 
 export async function getUserDetail(userId: string): Promise<UserDetail | null> {
   const sb = supabaseAdmin();
+  const defaultLimit = await getDefaultDailyLimit(sb);
   // Auth row first — confirms the user exists.
   const { data: authData, error: authErr } = await sb.auth.admin.getUserById(userId);
   if (authErr || !authData.user) return null;
@@ -235,7 +243,7 @@ export async function getUserDetail(userId: string): Promise<UserDetail | null> 
     last_sign_in_at: u.last_sign_in_at ?? null,
     suspended_at: profile?.suspended_at ?? null,
     credits_used_today: today?.used ?? 0,
-    credits_limit_today: today?.daily_limit ?? 100,
+    credits_limit_today: today?.daily_limit ?? defaultLimit,
     provider,
     email_confirmed_at: u.email_confirmed_at ?? null,
     total_analyses: analysesCountRes.count ?? 0,
