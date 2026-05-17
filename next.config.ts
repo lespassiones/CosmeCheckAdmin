@@ -12,7 +12,10 @@ const config: NextConfig = {
   reactStrictMode: true,
   poweredByHeader: false,
   experimental: {
-    nodeMiddleware: true,
+    // `nodeMiddleware` enables the Node.js runtime for middleware. The flag is
+    // supported at runtime in Next.js 15.5 but missing from ExperimentalConfig
+    // typings, so we widen the object to bypass the build-time type check.
+    ...({ nodeMiddleware: true } as Record<string, unknown>),
     optimizePackageImports: [
       "@supabase/supabase-js",
       "@supabase/ssr",
