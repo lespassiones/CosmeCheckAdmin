@@ -1,0 +1,147 @@
+@tailwind base;
+@tailwind components;
+@tailwind utilities;
+
+/* ════════════════════════════════════════════════════════════
+   Light-mode design system — neomorphism + liquid glass + pill
+   ════════════════════════════════════════════════════════════ */
+@layer base {
+  :root {
+    /* shadcn semantic tokens, calibrated for soft pastel light mode */
+    --background: 220 25% 97%;          /* #F4F6FA — page bg, slightly cool */
+    --foreground: 222 47% 11%;          /* near-black ink */
+
+    --card: 0 0% 100%;
+    --card-foreground: 222 47% 11%;
+
+    --popover: 0 0% 100%;
+    --popover-foreground: 222 47% 11%;
+
+    --primary: 346 77% 50%;             /* rose-500, matches CosmetWiki */
+    --primary-foreground: 0 0% 100%;
+
+    --secondary: 220 14% 96%;           /* very soft grey */
+    --secondary-foreground: 222 47% 11%;
+
+    --muted: 220 14% 94%;
+    --muted-foreground: 220 9% 46%;
+
+    --accent: 346 77% 96%;              /* pale rose tint */
+    --accent-foreground: 346 77% 30%;
+
+    --destructive: 0 84% 60%;
+    --destructive-foreground: 0 0% 100%;
+
+    --border: 220 13% 91%;
+    --input: 220 13% 91%;
+    --ring: 346 77% 50%;
+
+    --radius: 0.75rem;
+  }
+
+  * {
+    @apply border-border;
+  }
+  body {
+    @apply bg-background text-foreground antialiased;
+    font-feature-settings: "cv11", "ss01";
+  }
+  /* The whole app has a faint pastel orb backdrop for the glass cards to
+     refract against — refs the CosmetWiki landing. */
+  body::before {
+    content: "";
+    position: fixed;
+    inset: 0;
+    z-index: -1;
+    background:
+      radial-gradient(60vw 60vh at 12% 8%, rgba(244, 114, 182, 0.18), transparent 60%),
+      radial-gradient(50vw 50vh at 88% 18%, rgba(165, 180, 252, 0.16), transparent 60%),
+      radial-gradient(45vw 45vh at 50% 95%, rgba(253, 186, 116, 0.10), transparent 60%);
+    pointer-events: none;
+  }
+}
+
+@layer components {
+  /* ───────── Neomorphism cards / pills ─────────
+     Soft "lifted" surfaces that feel pressed into the page background.
+     Pair with the pastel orb backdrop for the signature CosmetWiki look. */
+  .neo-card {
+    @apply rounded-2xl bg-white shadow-neo ring-1 ring-black/[0.04];
+  }
+  .neo-card-sm {
+    @apply rounded-xl bg-white shadow-neo-sm ring-1 ring-black/[0.04];
+  }
+  .neo-pressed {
+    @apply rounded-2xl bg-white/80 shadow-neo-pressed ring-1 ring-black/[0.04];
+  }
+
+  /* ───────── Liquid glass surfaces ─────────
+     Translucent backdrop-blur cards. Layer on top of pastel orbs to
+     get the refraction effect. */
+  .glass-card {
+    @apply rounded-2xl bg-white/70 backdrop-blur-2xl backdrop-saturate-150 ring-1 ring-white/70 shadow-glass;
+  }
+  .glass-card-rose {
+    @apply rounded-2xl bg-gradient-to-br from-rose-50/85 via-pink-50/70 to-white/60 backdrop-blur-2xl ring-1 ring-rose-200/60 shadow-glass;
+  }
+
+  /* ───────── Pill UI elements ─────────
+     Used for nav items, badges, KPI chips, action buttons. */
+  .pill {
+    @apply inline-flex items-center gap-2 rounded-full bg-white/85 px-3 py-1.5 text-sm font-medium ring-1 ring-black/[0.05] shadow-[inset_0_1px_0_rgba(255,255,255,0.9),0_2px_6px_-2px_rgba(15,23,42,0.06)];
+  }
+  .pill-rose {
+    @apply inline-flex items-center gap-2 rounded-full bg-gradient-to-br from-rose-50 to-pink-100 px-3 py-1.5 text-sm font-medium text-rose-700 ring-1 ring-rose-200/60 shadow-[inset_0_1px_0_rgba(255,255,255,0.9),0_2px_6px_-2px_rgba(244,63,94,0.18)];
+  }
+  .pill-emerald {
+    @apply inline-flex items-center gap-1.5 rounded-full bg-emerald-50 px-2.5 py-1 text-xs font-medium text-emerald-700 ring-1 ring-emerald-200/60;
+  }
+  .pill-amber {
+    @apply inline-flex items-center gap-1.5 rounded-full bg-amber-50 px-2.5 py-1 text-xs font-medium text-amber-700 ring-1 ring-amber-200/60;
+  }
+  .pill-rose-tag {
+    @apply inline-flex items-center gap-1.5 rounded-full bg-rose-50 px-2.5 py-1 text-xs font-medium text-rose-700 ring-1 ring-rose-200/60;
+  }
+
+  /* ───────── Sidebar nav items ───────── */
+  .sidebar-link {
+    @apply flex items-center gap-3 rounded-xl px-3.5 py-2.5 text-[14px] font-medium text-muted-foreground transition-colors hover:bg-white/60 hover:text-foreground;
+  }
+  .sidebar-link-active {
+    @apply bg-white text-foreground font-semibold ring-1 ring-black/[0.04] shadow-[0_4px_14px_-4px_rgba(15,23,42,0.10),inset_0_1px_0_rgba(255,255,255,0.95)];
+  }
+
+  /* ───────── Buttons ───────── */
+  .btn-primary {
+    @apply inline-flex items-center justify-center gap-2 rounded-full bg-gradient-to-br from-rose-500 to-rose-600 px-5 py-2.5 text-sm font-semibold text-white shadow-[0_8px_22px_-8px_rgba(244,63,94,0.55),inset_0_1px_0_rgba(255,255,255,0.30)] transition hover:brightness-110 active:scale-[0.98] disabled:opacity-50 disabled:cursor-not-allowed;
+  }
+  .btn-secondary {
+    @apply inline-flex items-center justify-center gap-2 rounded-full bg-white px-5 py-2.5 text-sm font-semibold text-foreground ring-1 ring-black/[0.06] shadow-[0_4px_14px_-4px_rgba(15,23,42,0.08),inset_0_1px_0_rgba(255,255,255,0.95)] transition hover:bg-muted active:scale-[0.98] disabled:opacity-50;
+  }
+  .btn-danger {
+    @apply inline-flex items-center justify-center gap-2 rounded-full bg-gradient-to-br from-red-500 to-red-600 px-5 py-2.5 text-sm font-semibold text-white shadow-[0_8px_22px_-8px_rgba(239,68,68,0.55)] transition hover:brightness-110 active:scale-[0.98] disabled:opacity-50;
+  }
+
+  /* ───────── Input ───────── */
+  .input-base {
+    @apply w-full rounded-xl border border-input bg-white px-4 py-3 text-sm outline-none ring-0 transition focus:border-primary focus:ring-2 focus:ring-primary/20;
+  }
+}
+
+@layer utilities {
+  .tabular-nums {
+    font-variant-numeric: tabular-nums;
+  }
+  .scrollbar-thin {
+    scrollbar-width: thin;
+    scrollbar-color: hsl(var(--border)) transparent;
+  }
+  .scrollbar-thin::-webkit-scrollbar {
+    width: 6px;
+    height: 6px;
+  }
+  .scrollbar-thin::-webkit-scrollbar-thumb {
+    background-color: hsl(var(--border));
+    border-radius: 999px;
+  }
+}
