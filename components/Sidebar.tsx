@@ -11,6 +11,7 @@ import {
   ShieldAlert,
   Cog,
   CreditCard,
+  SlidersHorizontal,
   LogOut,
   type LucideIcon,
 } from "lucide-react";
@@ -32,6 +33,7 @@ const NAV: NavItem[] = [
   { href: "/catalog/products", label: "Catalogue", icon: Package },
   { href: "/security", label: "Sécurité", icon: ShieldAlert },
   { href: "/system", label: "Système", icon: Cog },
+  { href: "/settings", label: "Paramètres", icon: SlidersHorizontal },
   { href: "/billing", label: "Abonnements", icon: CreditCard, badge: "Soon" },
 ];
 
