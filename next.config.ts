@@ -12,6 +12,7 @@ const config: NextConfig = {
   reactStrictMode: true,
   poweredByHeader: false,
   experimental: {
+    nodeMiddleware: true,
     optimizePackageImports: [
       "@supabase/supabase-js",
       "@supabase/ssr",
