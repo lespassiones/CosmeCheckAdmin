@@ -1,3 +1,4 @@
+import { Suspense } from "react";
 import { notFound } from "next/navigation";
 import Link from "next/link";
 import {
@@ -14,6 +15,12 @@ import {
 import { PageHeader, SectionHeader } from "@/components/PageHeader";
 import { StatCard } from "@/components/StatCard";
 import { EmptyState } from "@/components/EmptyState";
+import {
+  Shimmer,
+  StatCardsRow,
+  CardSkeleton,
+  TableSkeleton,
+} from "@/components/Skeletons";
 import { getUserDetail } from "@/lib/queries/users";
 import { formatRelative, formatDateTime, formatInt, cn } from "@/lib/utils";
 import { CreditsAdjuster } from "./CreditsAdjuster";
@@ -32,12 +39,6 @@ export default async function UserDetailPage(
   { params }: { params: Promise<{ id: string }> },
 ) {
   const { id } = await params;
-  const user = await getUserDetail(id);
-  if (!user) notFound();
-
-  const ratio = user.credits_limit_today > 0
-    ? user.credits_used_today / user.credits_limit_today
-    : 0;
 
   return (
     <>
@@ -49,6 +50,45 @@ export default async function UserDetailPage(
         Retour aux utilisateurs
       </Link>
 
+      <Suspense fallback={<UserDetailSkeleton />}>
+        <UserDetailBody userId={id} />
+      </Suspense>
+    </>
+  );
+}
+
+function UserDetailSkeleton() {
+  return (
+    <>
+      <header className="mb-6">
+        <Shimmer className="h-8 w-56" />
+        <Shimmer className="mt-2 h-3.5 w-72" />
+      </header>
+      <CardSkeleton height="h-32" />
+      <Shimmer className="mb-3 mt-6 h-4 w-40" />
+      <StatCardsRow count={4} />
+      <div className="mb-8 grid grid-cols-1 gap-4 lg:grid-cols-2">
+        <CardSkeleton height="h-52" />
+        <CardSkeleton height="h-52" />
+      </div>
+      <Shimmer className="mb-3 h-4 w-48" />
+      <CardSkeleton height="h-24" />
+      <Shimmer className="mb-3 mt-6 h-4 w-40" />
+      <TableSkeleton rows={4} cols={3} />
+    </>
+  );
+}
+
+async function UserDetailBody({ userId }: { userId: string }) {
+  const user = await getUserDetail(userId);
+  if (!user) notFound();
+
+  const ratio = user.credits_limit_today > 0
+    ? user.credits_used_today / user.credits_limit_today
+    : 0;
+
+  return (
+    <>
       <PageHeader
         title={user.first_name || user.email.split("@")[0]!}
         subtitle={user.email}
@@ -342,4 +382,3 @@ function Field({
     </div>
   );
 }
-
