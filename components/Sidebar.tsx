@@ -12,6 +12,7 @@ import {
   Cog,
   CreditCard,
   SlidersHorizontal,
+  MessageSquare,
   LogOut,
   type LucideIcon,
 } from "lucide-react";
@@ -29,6 +30,7 @@ const NAV: NavItem[] = [
   { href: "/", label: "Vue d'ensemble", icon: LayoutDashboard },
   { href: "/users", label: "Utilisateurs", icon: Users },
   { href: "/activity", label: "Activité", icon: Activity },
+  { href: "/feedback", label: "Retours", icon: MessageSquare },
   { href: "/ai", label: "Coûts IA & Cache", icon: Sparkles },
   { href: "/catalog/products", label: "Catalogue", icon: Package },
   { href: "/security", label: "Sécurité", icon: ShieldAlert },
