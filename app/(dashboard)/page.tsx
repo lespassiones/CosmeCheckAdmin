@@ -14,6 +14,7 @@ import { DailyTrendChart } from "@/components/charts/DailyTrendChart";
 import { StatCardsRow, ChartCardSkeleton, CardSkeleton } from "@/components/Skeletons";
 import { fetchOverviewKpis, fetchAiToday, fetchDailySeries } from "@/lib/queries/overview";
 import { formatInt, formatUSD } from "@/lib/utils";
+import { AiHealthChecks } from "./AiHealthChecks";
 
 export const metadata = { title: "Vue d'ensemble" };
 export const dynamic = "force-dynamic";
@@ -30,6 +31,12 @@ export default function OverviewPage() {
       <Suspense fallback={<StatCardsRow count={8} />}>
         <OverviewKpis />
       </Suspense>
+
+      <SectionHeader
+        title="Test des providers IA"
+        subtitle="Vérifie manuellement qu'OpenAI et Mistral répondent encore."
+      />
+      <AiHealthChecks />
 
       <SectionHeader title="30 derniers jours" subtitle="Tendances quotidiennes" />
       <Suspense fallback={<ChartCardSkeleton rows={2} />}>
