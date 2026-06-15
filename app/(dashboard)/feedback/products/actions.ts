@@ -112,7 +112,12 @@ export async function approvePhotoSubmission(formData: FormData): Promise<Action
   return { ok: true };
 }
 
-/** Rejette une photo proposée (status='rejected'). */
+/**
+ * Rejette une photo proposée (status='rejected'). Si cette photo était l'image
+ * actuelle du produit (cas d'une re-modification après validation), on la RETIRE
+ * du catalogue : image nullifiée pour un produit à EAN, ligne synthétique
+ * désactivée pour un produit hors code-barres.
+ */
 export async function rejectPhotoSubmission(formData: FormData): Promise<ActionResult> {
   const admin = await requireAdmin();
 
@@ -120,6 +125,47 @@ export async function rejectPhotoSubmission(formData: FormData): Promise<ActionR
   if (!submissionId) return { ok: false, error: "Identifiant manquant." };
 
   const sb = supabaseAdmin();
+
+  const { data: sub } = await sb
+    .schema("cosme_check")
+    .from("catalog_photo_submissions")
+    .select("id, ean, photo_path_1, photo_path_2")
+    .eq("id", submissionId)
+    .single();
+  const submission = sub as
+    | { id: string; ean: string | null; photo_path_1: string; photo_path_2: string | null }
+    | null;
+
+  // Revert de l'image si elle provenait bien de cette soumission.
+  if (submission) {
+    const urls = [submission.photo_path_1, submission.photo_path_2]
+      .filter((p): p is string => !!p)
+      .map((p) => sb.storage.from(BUCKET).getPublicUrl(p).data.publicUrl);
+
+    if (submission.ean) {
+      const { data: cat } = await sb
+        .schema("cosme_check")
+        .from("catalog")
+        .select("image_url")
+        .eq("ean", submission.ean)
+        .single();
+      const current = (cat as { image_url: string | null } | null)?.image_url ?? null;
+      if (current && urls.includes(current)) {
+        await sb
+          .schema("cosme_check")
+          .from("catalog")
+          .update({ image_url: null })
+          .eq("ean", submission.ean);
+      }
+    } else {
+      await sb
+        .schema("cosme_check")
+        .from("catalog")
+        .update({ image_url: null, is_active: false })
+        .eq("ean", `cc-photo-${submission.id}`);
+    }
+  }
+
   const { error } = await sb
     .schema("cosme_check")
     .from("catalog_photo_submissions")
@@ -135,7 +181,7 @@ export async function rejectPhotoSubmission(formData: FormData): Promise<ActionR
   await logAudit({
     adminEmail: admin.email,
     action: "product_photo.reject",
-    payload: { submission_id: submissionId },
+    payload: { submission_id: submissionId, reverted_image: !!submission },
   });
 
   revalidatePath("/feedback/products");

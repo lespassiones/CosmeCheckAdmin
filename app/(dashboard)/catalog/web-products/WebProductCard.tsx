@@ -5,7 +5,7 @@ import { Loader2, Sparkles, X, BarcodeIcon, ExternalLink, ChevronDown } from "lu
 import { toast } from "sonner";
 import { cn } from "@/lib/utils";
 import { findAndPromote, promoteWithEan, rejectWebProduct } from "./actions";
-import { leafOf, type WebProductRow } from "@/lib/queries/webProducts";
+import { leafOf, type WebProductRow } from "@/lib/categoryPath";
 
 export function WebProductCard({ product }: { product: WebProductRow }) {
   const [pending, startTransition] = useTransition();

@@ -1,7 +1,7 @@
 "use client";
 
 import { useState, useTransition } from "react";
-import { Check, X, ImageOff } from "lucide-react";
+import { Check, X, ImageOff, Pencil } from "lucide-react";
 import { toast } from "sonner";
 import { approvePhotoSubmission, rejectPhotoSubmission } from "./actions";
 import type { PhotoSubmissionRow } from "@/lib/queries/productModeration";
@@ -15,6 +15,9 @@ import { cn, formatDateTime } from "@/lib/utils";
 export function PhotoModerationCard({ row }: { row: PhotoSubmissionRow }) {
   const [pending, startTransition] = useTransition();
   const [chosen, setChosen] = useState(row.photo_path_1);
+  // Permet de revenir sur une décision déjà prise (re-valider une autre photo,
+  // ou rejeter une photo précédemment validée → l'image est retirée du produit).
+  const [editing, setEditing] = useState(false);
 
   const photos = [
     { path: row.photo_path_1, url: row.photo_url_1 },
@@ -24,6 +27,7 @@ export function PhotoModerationCard({ row }: { row: PhotoSubmissionRow }) {
   ];
 
   const isPending = row.status === "pending";
+  const canEdit = isPending || editing;
 
   function approve() {
     startTransition(async () => {
@@ -31,7 +35,7 @@ export function PhotoModerationCard({ row }: { row: PhotoSubmissionRow }) {
       fd.append("submission_id", row.id);
       fd.append("photo_path", chosen);
       const r = await approvePhotoSubmission(fd);
-      if (r.ok) toast.success("Photo validée et liée au produit.");
+      if (r.ok) { toast.success("Photo validée et liée au produit."); setEditing(false); }
       else toast.error(r.error);
     });
   }
@@ -41,7 +45,7 @@ export function PhotoModerationCard({ row }: { row: PhotoSubmissionRow }) {
       const fd = new FormData();
       fd.append("submission_id", row.id);
       const r = await rejectPhotoSubmission(fd);
-      if (r.ok) toast.success("Photo rejetée.");
+      if (r.ok) { toast.success("Photo rejetée, image retirée du produit."); setEditing(false); }
       else toast.error(r.error);
     });
   }
@@ -51,17 +55,17 @@ export function PhotoModerationCard({ row }: { row: PhotoSubmissionRow }) {
       {/* Photos */}
       <div className="flex gap-3">
         {photos.map((p, i) => {
-          const selected = isPending && chosen === p.path;
+          const selected = canEdit && chosen === p.path;
           return (
             <button
               key={i}
               type="button"
-              onClick={() => isPending && setChosen(p.path)}
-              disabled={!isPending}
+              onClick={() => canEdit && setChosen(p.path)}
+              disabled={!canEdit}
               className={cn(
                 "relative aspect-square w-1/2 overflow-hidden rounded-xl ring-2 transition",
                 selected ? "ring-rose-500" : "ring-black/[0.06]",
-                isPending && "cursor-pointer hover:ring-rose-300",
+                canEdit && "cursor-pointer hover:ring-rose-300",
               )}
             >
               {/* eslint-disable-next-line @next/next/no-img-element */}
@@ -101,7 +105,7 @@ export function PhotoModerationCard({ row }: { row: PhotoSubmissionRow }) {
       </div>
 
       {/* Actions */}
-      {isPending ? (
+      {canEdit ? (
         <div className="mt-3 grid grid-cols-2 gap-2">
           <button
             type="button"
@@ -121,9 +125,19 @@ export function PhotoModerationCard({ row }: { row: PhotoSubmissionRow }) {
             <Check className="h-4 w-4" />
             Valider
           </button>
+          {editing && !isPending && (
+            <button
+              type="button"
+              onClick={() => setEditing(false)}
+              disabled={pending}
+              className="col-span-2 justify-center text-[12px] text-muted-foreground hover:text-foreground"
+            >
+              Annuler
+            </button>
+          )}
         </div>
       ) : (
-        <div className="mt-3">
+        <div className="mt-3 flex items-center justify-between gap-2">
           <span
             className={cn(
               "inline-flex items-center gap-1.5 rounded-full px-2.5 py-0.5 text-[11px] font-medium",
@@ -135,6 +149,14 @@ export function PhotoModerationCard({ row }: { row: PhotoSubmissionRow }) {
             {row.status === "approved" ? "Validée" : "Rejetée"}
             {row.reviewed_at ? ` · ${formatDateTime(row.reviewed_at)}` : ""}
           </span>
+          <button
+            type="button"
+            onClick={() => { setChosen(row.photo_path_1); setEditing(true); }}
+            className="inline-flex items-center gap-1 rounded-lg px-2.5 py-1 text-[12px] font-medium text-rose-700 ring-1 ring-rose-200/60 transition-colors hover:bg-rose-50"
+          >
+            <Pencil className="h-3.5 w-3.5" />
+            Modifier la décision
+          </button>
         </div>
       )}
     </article>

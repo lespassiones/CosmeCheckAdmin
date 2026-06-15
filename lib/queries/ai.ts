@@ -11,17 +11,52 @@ import "server-only";
 import { supabaseAdmin } from "@/lib/supabase";
 import type { DailySeriesPoint } from "@/lib/queries/overview";
 
-// Rough $/1M tokens — calibrated for gpt-4o-mini + mistral-small.
-// Used as a ROUGH estimator, not a billing source. Kept identical to
-// lib/queries/overview.ts.
-const COST_PER_M_IN_USD = 0.15;
-const COST_PER_M_OUT_USD = 0.6;
+/**
+ * Tarifs par modèle ($/1M tokens) + frais de recherche web PAR APPEL.
+ *
+ * Point clé : les modèles `*-search-preview` facturent un frais de recherche web
+ * FIXE par appel (≈ $27,5 / 1000 appels en contexte "medium"), EN PLUS des
+ * tokens. C'est ce frais, longtemps invisible (appels non loggés), qui faisait
+ * sous-estimer le coût d'un facteur ~15. On l'ajoute désormais par ligne.
+ */
+type PriceRow = { in: number; out: number; webFeePerCall?: number };
 
-/** Convert raw token counts into a $ estimate. */
-function tokensToCost(tokensIn: number, tokensOut: number): number {
+const PRICING: Record<string, PriceRow> = {
+  "gpt-4o-mini": { in: 0.15, out: 0.6 },
+  "gpt-4o-mini-search-preview": { in: 0.15, out: 0.6, webFeePerCall: 0.0275 },
+  "gpt-4o": { in: 2.5, out: 10 },
+  "gpt-4o-search-preview": { in: 2.5, out: 10, webFeePerCall: 0.035 },
+  "mistral-small-latest": { in: 0.2, out: 0.6 },
+};
+const DEFAULT_PRICE: PriceRow = PRICING["gpt-4o-mini"];
+
+/** Modèle effectif d'une ligne : la colonne `model` si présente, sinon déduit. */
+function resolveModel(
+  model: string | null | undefined,
+  provider: string | null | undefined,
+): string | null {
+  if (model) return model;
+  if (provider === "mistral") return "mistral-small-latest";
+  if (provider === "tesseract" || provider === "cache") return null; // gratuit
+  return "gpt-4o-mini"; // openai par défaut (anciennes lignes sans model)
+}
+
+export type CostRow = {
+  model?: string | null;
+  provider?: string | null;
+  tokens_in: number | null;
+  tokens_out: number | null;
+};
+
+/** Coût $ d'UNE ligne ai_logs (tokens au tarif du modèle + frais web par appel). */
+export function rowCost(row: CostRow): number {
+  const m = resolveModel(row.model, row.provider);
+  if (m === null) return 0;
+  const p = PRICING[m] ?? DEFAULT_PRICE;
   return (
-    (tokensIn / 1_000_000) * COST_PER_M_IN_USD
-    + (tokensOut / 1_000_000) * COST_PER_M_OUT_USD
+    ((row.tokens_in ?? 0) / 1_000_000) * p.in
+    + ((row.tokens_out ?? 0) / 1_000_000) * p.out
+    + (p.webFeePerCall ?? 0)
   );
 }
 
@@ -55,29 +90,24 @@ export async function fetchAiKpis(): Promise<AiKpis> {
     sb
       .schema("cosme_check")
       .from("ai_logs")
-      .select("tokens_in, tokens_out")
+      .select("model, provider, tokens_in, tokens_out")
       .gte("created_at", startOfToday.toISOString()),
     sb
       .schema("cosme_check")
       .from("ai_logs")
-      .select("tokens_in, tokens_out")
+      .select("model, provider, tokens_in, tokens_out")
       .gte("created_at", start7d.toISOString()),
     sb
       .schema("cosme_check")
       .from("ai_logs")
-      .select("tokens_in, tokens_out")
+      .select("model, provider, tokens_in, tokens_out")
       .gte("created_at", start30d.toISOString()),
     sb.schema("cosme_check").from("ai_cache").select("hits"),
     sb.schema("cosme_check").from("ai_logs").select("id", { count: "exact", head: true }),
   ]);
 
-  const sumCost = (
-    rows: { tokens_in: number | null; tokens_out: number | null }[] | null,
-  ): number =>
-    (rows ?? []).reduce(
-      (s, r) => s + tokensToCost(r.tokens_in ?? 0, r.tokens_out ?? 0),
-      0,
-    );
+  const sumCost = (rows: CostRow[] | null): number =>
+    (rows ?? []).reduce((s, r) => s + rowCost(r), 0);
 
   const totalHits = ((cacheHitsRes.data ?? []) as { hits: number | null }[])
     .reduce((s, r) => s + (r.hits ?? 0), 0);
@@ -88,9 +118,9 @@ export async function fetchAiKpis(): Promise<AiKpis> {
   const cacheHitRate = denom === 0 ? 0 : totalHits / denom;
 
   return {
-    costTodayUSD: sumCost(todayRes.data as { tokens_in: number | null; tokens_out: number | null }[] | null),
-    cost7dUSD: sumCost(sevenRes.data as { tokens_in: number | null; tokens_out: number | null }[] | null),
-    cost30dUSD: sumCost(thirtyRes.data as { tokens_in: number | null; tokens_out: number | null }[] | null),
+    costTodayUSD: sumCost(todayRes.data as CostRow[] | null),
+    cost7dUSD: sumCost(sevenRes.data as CostRow[] | null),
+    cost30dUSD: sumCost(thirtyRes.data as CostRow[] | null),
     cacheHitRate,
   };
 }
@@ -108,7 +138,7 @@ export async function fetchAiDailyCostSeries(days = 30): Promise<DailySeriesPoin
   const { data } = await sb
     .schema("cosme_check")
     .from("ai_logs")
-    .select("created_at, tokens_in, tokens_out")
+    .select("created_at, model, provider, tokens_in, tokens_out")
     .gte("created_at", since.toISOString());
 
   const buckets = new Map<string, DailySeriesPoint>();
@@ -118,14 +148,10 @@ export async function fetchAiDailyCostSeries(days = 30): Promise<DailySeriesPoin
     buckets.set(key, { day: key, analyses: 0, signups: 0, cost_usd: 0 });
   }
 
-  for (const l of (data ?? []) as {
-    created_at: string;
-    tokens_in: number | null;
-    tokens_out: number | null;
-  }[]) {
+  for (const l of (data ?? []) as (CostRow & { created_at: string })[]) {
     const key = l.created_at.slice(0, 10);
     const b = buckets.get(key);
-    if (b) b.cost_usd += tokensToCost(l.tokens_in ?? 0, l.tokens_out ?? 0);
+    if (b) b.cost_usd += rowCost(l);
   }
 
   return Array.from(buckets.values());
@@ -172,12 +198,13 @@ export async function fetchAiBreakdowns(days = 30): Promise<AiBreakdowns> {
   const { data } = await sb
     .schema("cosme_check")
     .from("ai_logs")
-    .select("feature, provider, tokens_in, tokens_out, duration_ms")
+    .select("feature, provider, model, tokens_in, tokens_out, duration_ms")
     .gte("created_at", since.toISOString());
 
   const rows = (data ?? []) as {
     feature: string | null;
     provider: string | null;
+    model: string | null;
     tokens_in: number | null;
     tokens_out: number | null;
     duration_ms: number | null;
@@ -187,12 +214,14 @@ export async function fetchAiBreakdowns(days = 30): Promise<AiBreakdowns> {
     calls: number;
     tokens_in: number;
     tokens_out: number;
+    cost: number;
     durations: number[];
   };
   type ProviderAgg = {
     calls: number;
     tokens_in: number;
     tokens_out: number;
+    cost: number;
   };
 
   const featureMap = new Map<string, FeatureAgg>();
@@ -203,16 +232,19 @@ export async function fetchAiBreakdowns(days = 30): Promise<AiBreakdowns> {
     const provider = r.provider ?? "unknown";
     const tIn = r.tokens_in ?? 0;
     const tOut = r.tokens_out ?? 0;
+    const c = rowCost(r);
 
     const f = featureMap.get(feature) ?? {
       calls: 0,
       tokens_in: 0,
       tokens_out: 0,
+      cost: 0,
       durations: [],
     };
     f.calls += 1;
     f.tokens_in += tIn;
     f.tokens_out += tOut;
+    f.cost += c;
     if (r.duration_ms !== null && r.duration_ms !== undefined) {
       f.durations.push(r.duration_ms);
     }
@@ -222,10 +254,12 @@ export async function fetchAiBreakdowns(days = 30): Promise<AiBreakdowns> {
       calls: 0,
       tokens_in: 0,
       tokens_out: 0,
+      cost: 0,
     };
     p.calls += 1;
     p.tokens_in += tIn;
     p.tokens_out += tOut;
+    p.cost += c;
     providerMap.set(provider, p);
   }
 
@@ -239,7 +273,7 @@ export async function fetchAiBreakdowns(days = 30): Promise<AiBreakdowns> {
         tokens_out: agg.tokens_out,
         latency_p50_ms: percentile(sorted, 0.5),
         latency_p95_ms: percentile(sorted, 0.95),
-        cost_usd: tokensToCost(agg.tokens_in, agg.tokens_out),
+        cost_usd: agg.cost,
       };
     })
     .sort((a, b) => b.cost_usd - a.cost_usd);
@@ -250,7 +284,7 @@ export async function fetchAiBreakdowns(days = 30): Promise<AiBreakdowns> {
       calls: agg.calls,
       tokens_in: agg.tokens_in,
       tokens_out: agg.tokens_out,
-      cost_usd: tokensToCost(agg.tokens_in, agg.tokens_out),
+      cost_usd: agg.cost,
     }))
     .sort((a, b) => b.cost_usd - a.cost_usd);
 

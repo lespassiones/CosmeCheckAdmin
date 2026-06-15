@@ -2,11 +2,13 @@
 
 import Link from "next/link";
 import { usePathname } from "next/navigation";
-import { Package, FlaskConical, Calendar } from "lucide-react";
+import { Package, FlaskConical, Calendar, Database, ScrollText } from "lucide-react";
 import { cn } from "@/lib/utils";
 
 const TABS = [
-  { href: "/catalog/products", label: "Produits", icon: Package },
+  { href: "/catalog/database", label: "Base (405k)", icon: Database },
+  { href: "/catalog/promises", label: "Promesses", icon: ScrollText },
+  { href: "/catalog/products", label: "Scrape INCI (33k)", icon: Package },
   { href: "/catalog/ingredients", label: "Ingrédients", icon: FlaskConical },
   { href: "/catalog/daily-picks", label: "Daily Picks", icon: Calendar },
 ] as const;

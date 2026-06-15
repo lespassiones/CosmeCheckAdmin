@@ -6,6 +6,7 @@
  */
 import "server-only";
 import { supabaseAdmin } from "@/lib/supabase";
+import { rowCost } from "@/lib/queries/ai";
 
 export type OverviewKpis = {
   totalUsers: number;
@@ -102,11 +103,6 @@ export type AiTodayBreakdown = {
   byFeature: Array<{ feature: string; calls: number; tokens_in: number; tokens_out: number; estimated_cost_usd: number }>;
 };
 
-// Rough $/1M tokens — calibrated for gpt-4o-mini + mistral-small.
-// Used as a ROUGH estimator, not a billing source.
-const COST_PER_M_IN_USD = 0.15;
-const COST_PER_M_OUT_USD = 0.6;
-
 export async function fetchAiToday(): Promise<AiTodayBreakdown> {
   const sb = supabaseAdmin();
   const since = new Date();
@@ -115,37 +111,44 @@ export async function fetchAiToday(): Promise<AiTodayBreakdown> {
   const { data } = await sb
     .schema("cosme_check")
     .from("ai_logs")
-    .select("feature, tokens_in, tokens_out")
+    .select("feature, model, provider, tokens_in, tokens_out")
     .gte("created_at", since.toISOString());
 
-  const rows = (data ?? []) as { feature: string | null; tokens_in: number | null; tokens_out: number | null }[];
+  const rows = (data ?? []) as {
+    feature: string | null;
+    model: string | null;
+    provider: string | null;
+    tokens_in: number | null;
+    tokens_out: number | null;
+  }[];
 
-  const map = new Map<string, { calls: number; tokens_in: number; tokens_out: number }>();
+  const map = new Map<string, { calls: number; tokens_in: number; tokens_out: number; cost: number }>();
   let totalIn = 0;
   let totalOut = 0;
+  let estimatedCostUSD = 0;
   for (const r of rows) {
     const feature = r.feature ?? "unknown";
-    const cur = map.get(feature) ?? { calls: 0, tokens_in: 0, tokens_out: 0 };
+    const c = rowCost(r);
+    const cur = map.get(feature) ?? { calls: 0, tokens_in: 0, tokens_out: 0, cost: 0 };
     cur.calls += 1;
     cur.tokens_in += r.tokens_in ?? 0;
     cur.tokens_out += r.tokens_out ?? 0;
+    cur.cost += c;
     map.set(feature, cur);
     totalIn += r.tokens_in ?? 0;
     totalOut += r.tokens_out ?? 0;
+    estimatedCostUSD += c;
   }
 
   const byFeature = Array.from(map.entries())
     .map(([feature, agg]) => ({
       feature,
-      ...agg,
-      estimated_cost_usd:
-        (agg.tokens_in / 1_000_000) * COST_PER_M_IN_USD
-        + (agg.tokens_out / 1_000_000) * COST_PER_M_OUT_USD,
+      calls: agg.calls,
+      tokens_in: agg.tokens_in,
+      tokens_out: agg.tokens_out,
+      estimated_cost_usd: agg.cost,
     }))
     .sort((a, b) => b.estimated_cost_usd - a.estimated_cost_usd);
-
-  const estimatedCostUSD =
-    (totalIn / 1_000_000) * COST_PER_M_IN_USD + (totalOut / 1_000_000) * COST_PER_M_OUT_USD;
 
   return {
     totalTokensIn: totalIn,
@@ -176,7 +179,7 @@ export async function fetchDailySeries(days = 30): Promise<DailySeriesPoint[]> {
     sb
       .schema("cosme_check")
       .from("ai_logs")
-      .select("created_at, tokens_in, tokens_out")
+      .select("created_at, model, provider, tokens_in, tokens_out")
       .gte("created_at", since.toISOString()),
     sb.auth.admin.listUsers({ page: 1, perPage: 1000 }),
   ]);
@@ -193,14 +196,16 @@ export async function fetchDailySeries(days = 30): Promise<DailySeriesPoint[]> {
     const b = buckets.get(key);
     if (b) b.analyses += 1;
   }
-  for (const l of (logsRes.data ?? []) as { created_at: string; tokens_in: number | null; tokens_out: number | null }[]) {
+  for (const l of (logsRes.data ?? []) as {
+    created_at: string;
+    model: string | null;
+    provider: string | null;
+    tokens_in: number | null;
+    tokens_out: number | null;
+  }[]) {
     const key = l.created_at.slice(0, 10);
     const b = buckets.get(key);
-    if (b) {
-      b.cost_usd
-        += ((l.tokens_in ?? 0) / 1_000_000) * COST_PER_M_IN_USD
-        + ((l.tokens_out ?? 0) / 1_000_000) * COST_PER_M_OUT_USD;
-    }
+    if (b) b.cost_usd += rowCost(l);
   }
   if (!usersRes.error && usersRes.data) {
     for (const u of usersRes.data.users) {
