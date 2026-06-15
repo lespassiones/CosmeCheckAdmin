@@ -1,3 +1,4 @@
+import { Suspense } from "react";
 import Link from "next/link";
 import Image from "next/image";
 import { ImageOff } from "lucide-react";
@@ -16,6 +17,15 @@ export const metadata = { title: "Base produits (catalog)" };
 export const dynamic = "force-dynamic";
 
 type SP = Promise<Record<string, string | undefined>>;
+
+/** Plafond couleur (identique à l'app) : ≥1 rouge ou ≥3 orange → ≤8.9 ; ≥1 orange → ≤12.9. */
+function capScore(score: number | null, orange: number | null, rouge: number | null): number | null {
+  if (score === null) return null;
+  const o = orange ?? 0, r = rouge ?? 0;
+  if (r >= 1 || o >= 3) return Math.min(score, 8.9);
+  if (o >= 1) return Math.min(score, 12.9);
+  return score;
+}
 
 function scoreTone(score: number | null): string {
   if (score === null) return "bg-slate-100 text-slate-500";
@@ -40,6 +50,43 @@ function Stat({ label, value, tone, href }: { label: string; value: number; tone
   );
 }
 
+const STATS_GRID = "mb-5 grid grid-cols-2 gap-2 sm:grid-cols-3 lg:grid-cols-7";
+
+/** Squelette des stats (affiché instantanément pendant le scan ~10s). */
+function StatsSkeleton() {
+  return (
+    <div className={STATS_GRID}>
+      {Array.from({ length: 12 }).map((_, i) => (
+        <div key={i} className="rounded-xl bg-white/70 px-3 py-2 ring-1 ring-black/[0.05]">
+          <div className="h-2.5 w-16 rounded bg-slate-100" />
+          <div className="mt-1.5 h-3.5 w-10 animate-pulse rounded bg-slate-200" />
+        </div>
+      ))}
+    </div>
+  );
+}
+
+/** Barre de stats — async, streamée en Suspense pour ne PAS bloquer la liste. */
+async function CatalogStatsBar() {
+  const stats = await fetchCatalogStats();
+  return (
+    <div className={STATS_GRID}>
+      <Stat label="Total" value={stats.total} href="/catalog/database" />
+      <Stat label="Avec photo" value={stats.with_photo} href="/catalog/database?photo=with" />
+      <Stat label="Sans photo" value={stats.without_photo} tone="text-rose-600" href="/catalog/database?photo=without" />
+      <Stat label="Avec score" value={stats.with_score} href="/catalog/database?score=with" />
+      <Stat label="Sans score" value={stats.without_score} tone="text-rose-600" href="/catalog/database?score=without" />
+      <Stat label="Sans INCI" value={stats.without_inci} tone="text-rose-600" href="/catalog/database?inci=without" />
+      <Stat label="Pénalisants" value={stats.penalizing} tone="text-orange-600" href="/catalog/database?penalizing=with" />
+      <Stat label="Score INCI Beauty" value={stats.source_incibeauty} href="/catalog/database?source=incibeauty" />
+      <Stat label="Web / notre analyse" value={stats.source_web} href="/catalog/database?source=web" />
+      <Stat label="Actifs" value={stats.active} href="/catalog/database?active=active" />
+      <Stat label="Inactifs" value={stats.inactive} tone="text-rose-600" href="/catalog/database?active=inactive" />
+      <Stat label="Code-barre seul" value={stats.only_barcode} tone="text-amber-600" href="/catalog/database?only_barcode=1" />
+    </div>
+  );
+}
+
 export default async function CatalogDatabasePage({ searchParams }: { searchParams: SP }) {
   const sp = (await searchParams) ?? {};
   const one = (v: string | undefined) => (v && v.length ? v : undefined);
@@ -58,10 +105,9 @@ export default async function CatalogDatabasePage({ searchParams }: { searchPara
     size: 50,
   };
 
-  const [stats, list] = await Promise.all([
-    fetchCatalogStats(),
-    listCatalogProducts(filters),
-  ]);
+  // On n'attend QUE la liste (rapide ~70ms). Les stats (scan ~10s) sont streamées
+  // séparément en Suspense → la liste s'affiche immédiatement.
+  const list = await listCatalogProducts(filters);
 
   const pageHref = (p: number) => {
     const qs = new URLSearchParams();
@@ -79,21 +125,10 @@ export default async function CatalogDatabasePage({ searchParams }: { searchPara
       />
       <CatalogTabs />
 
-      {/* Stats globales — cliquables : chaque carte applique son filtre. */}
-      <div className="mb-5 grid grid-cols-2 gap-2 sm:grid-cols-3 lg:grid-cols-7">
-        <Stat label="Total" value={stats.total} href="/catalog/database" />
-        <Stat label="Avec photo" value={stats.with_photo} href="/catalog/database?photo=with" />
-        <Stat label="Sans photo" value={stats.without_photo} tone="text-rose-600" href="/catalog/database?photo=without" />
-        <Stat label="Avec score" value={stats.with_score} href="/catalog/database?score=with" />
-        <Stat label="Sans score" value={stats.without_score} tone="text-rose-600" href="/catalog/database?score=without" />
-        <Stat label="Sans INCI" value={stats.without_inci} tone="text-rose-600" href="/catalog/database?inci=without" />
-        <Stat label="Pénalisants" value={stats.penalizing} tone="text-orange-600" href="/catalog/database?penalizing=with" />
-        <Stat label="Score INCI Beauty" value={stats.source_incibeauty} href="/catalog/database?source=incibeauty" />
-        <Stat label="Web / notre analyse" value={stats.source_web} href="/catalog/database?source=web" />
-        <Stat label="Actifs" value={stats.active} href="/catalog/database?active=active" />
-        <Stat label="Inactifs" value={stats.inactive} tone="text-rose-600" href="/catalog/database?active=inactive" />
-        <Stat label="Code-barre seul" value={stats.only_barcode} tone="text-amber-600" href="/catalog/database?only_barcode=1" />
-      </div>
+      {/* Stats — streamées (le scan ~10s ne bloque PAS l'affichage de la liste). */}
+      <Suspense fallback={<StatsSkeleton />}>
+        <CatalogStatsBar />
+      </Suspense>
 
       <CatalogDbFilters />
 
@@ -144,9 +179,22 @@ export default async function CatalogDatabasePage({ searchParams }: { searchPara
                     </span>
                   </td>
                   <td className="px-3 py-2.5 text-right">
-                    <span className={cn("inline-block rounded-full px-2 py-0.5 text-[12px] font-semibold tabular-nums", scoreTone(p.score))}>
-                      {p.score === null ? "—" : p.score.toFixed(1)}
-                    </span>
+                    {(() => {
+                      const capped = capScore(p.score, p.count_orange, p.count_rouge);
+                      const isCapped = p.score !== null && capped !== null && capped < p.score;
+                      return (
+                        <span className="inline-flex items-center justify-end gap-1.5">
+                          {isCapped && (
+                            <span className="text-[10px] text-orange-500" title={`Plafonné (blocus) · ${p.count_orange ?? 0} orange / ${p.count_rouge ?? 0} rouge · score brut ${p.score?.toFixed(1)}`}>
+                              ⚠
+                            </span>
+                          )}
+                          <span className={cn("inline-block rounded-full px-2 py-0.5 text-[12px] font-semibold tabular-nums", scoreTone(capped))}>
+                            {capped === null ? "—" : capped.toFixed(1)}
+                          </span>
+                        </span>
+                      );
+                    })()}
                   </td>
                 </tr>
               ))

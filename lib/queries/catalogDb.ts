@@ -6,7 +6,6 @@
  * Server-only, supabaseAdmin (service_role).
  */
 import "server-only";
-import { unstable_cache } from "next/cache";
 import { supabaseAdmin } from "@/lib/supabase";
 
 export type CatalogStats = {
@@ -27,26 +26,22 @@ export type CatalogStats = {
   only_barcode: number;
 };
 
-// Stats = scan complet de 405k → on les CACHE 5 min (elles bougent peu) pour ne
-// PAS rescanner la base à chaque chargement de page (cause de l'écran blanc).
-const _statsCached = unstable_cache(
-  async (): Promise<CatalogStats | null> => {
-    const sb = supabaseAdmin();
-    const { data, error } = await sb.rpc("cosme_check_catalog_admin_stats");
-    if (error) return null;
-    return data as CatalogStats;
-  },
-  ["catalog-admin-stats-v2"],
-  { revalidate: 300 },
-);
+const ZERO_STATS: CatalogStats = {
+  total: 0, with_photo: 0, without_photo: 0, with_score: 0, without_score: 0,
+  with_inci: 0, without_inci: 0, source_web: 0, source_incibeauty: 0,
+  penalizing: 0, active: 0, inactive: 0, real_ean: 0, synthetic_ean: 0, only_barcode: 0,
+};
 
+/**
+ * Stats = LECTURE INSTANTANÉE d'une ligne précalculée (cosme_check.catalog_stats_cache),
+ * rafraîchie par un cron horaire. Le scan ~10s ne tourne JAMAIS dans la requête
+ * admin → pas de timeout Vercel, pas d'écran à « 0 ».
+ */
 export async function fetchCatalogStats(): Promise<CatalogStats> {
-  const data = await _statsCached();
-  return data ?? ({
-    total: 0, with_photo: 0, without_photo: 0, with_score: 0, without_score: 0,
-    with_inci: 0, without_inci: 0, source_web: 0, source_incibeauty: 0,
-    penalizing: 0, active: 0, inactive: 0, real_ean: 0, synthetic_ean: 0, only_barcode: 0,
-  });
+  const sb = supabaseAdmin();
+  const { data, error } = await sb.rpc("cosme_check_get_catalog_stats");
+  if (error || !data) return ZERO_STATS;
+  return { ...ZERO_STATS, ...(data as Partial<CatalogStats>) };
 }
 
 export type CatalogProductRow = {
