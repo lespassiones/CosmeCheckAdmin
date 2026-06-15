@@ -33,7 +33,7 @@ const NAV: NavItem[] = [
   { href: "/activity", label: "Activité", icon: Activity },
   { href: "/feedback", label: "Retours", icon: MessageSquare },
   { href: "/ai", label: "Coûts IA & Cache", icon: Sparkles },
-  { href: "/catalog/products", label: "Catalogue", icon: Package },
+  { href: "/catalog/database", label: "Catalogue", icon: Package },
   { href: "/catalog/web-products", label: "Produits web", icon: Globe },
   { href: "/security", label: "Sécurité", icon: ShieldAlert },
   { href: "/system", label: "Système", icon: Cog },
@@ -43,6 +43,9 @@ const NAV: NavItem[] = [
 
 function isActive(pathname: string, href: string): boolean {
   if (href === "/") return pathname === "/";
+  // « Catalogue » reste actif sur tous ses sous-onglets (database, products,
+  // promises, ingredients, daily-picks) ; « Produits web » garde son propre état.
+  if (href === "/catalog/database") return pathname.startsWith("/catalog") && pathname !== "/catalog/web-products";
   return pathname === href || pathname.startsWith(`${href}/`);
 }
 

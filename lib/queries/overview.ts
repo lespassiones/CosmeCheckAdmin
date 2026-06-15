@@ -66,7 +66,8 @@ export async function fetchOverviewKpis(): Promise<OverviewKpis> {
       .select("used")
       .eq("day", today.toISOString().slice(0, 10)),
     sb.schema("cosme_check").from("analyses").select("id", { count: "exact", head: true }),
-    sb.schema("cosme_check").from("products").select("id", { count: "exact", head: true }),
+    // Vraie base produits servie au mobile = catalog (405k), pas products (33k, ancien scrape).
+    sb.schema("cosme_check").from("catalog").select("ean", { count: "exact", head: true }),
     sb
       .schema("cosme_check")
       .from("error_log")

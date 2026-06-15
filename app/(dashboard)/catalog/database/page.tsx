@@ -24,12 +24,18 @@ function scoreTone(score: number | null): string {
   return "bg-rose-50 text-rose-700 ring-1 ring-rose-200/60";
 }
 
-function Stat({ label, value, tone }: { label: string; value: number; tone?: string }) {
-  return (
-    <div className="rounded-xl bg-white/70 px-3 py-2 ring-1 ring-black/[0.05]">
+function Stat({ label, value, tone, href }: { label: string; value: number; tone?: string; href?: string }) {
+  const body = (
+    <>
       <p className="text-[10px] uppercase tracking-wide text-muted-foreground">{label}</p>
       <p className={cn("mt-0.5 text-[15px] font-bold tabular-nums", tone)}>{formatInt(value)}</p>
-    </div>
+    </>
+  );
+  const cls = "block rounded-xl bg-white/70 px-3 py-2 ring-1 ring-black/[0.05] transition-colors";
+  return href ? (
+    <Link href={href} className={cn(cls, "hover:bg-white hover:ring-rose-200/70")}>{body}</Link>
+  ) : (
+    <div className={cls}>{body}</div>
   );
 }
 
@@ -45,6 +51,7 @@ export default async function CatalogDatabasePage({ searchParams }: { searchPara
     source: one(sp.source) as CatalogFilters["source"],
     penalizing: one(sp.penalizing) as CatalogFilters["penalizing"],
     active: one(sp.active) as CatalogFilters["active"],
+    onlyBarcode: sp.only_barcode === "1",
     category: one(sp.category),
     page: Math.max(1, parseInt(sp.page ?? "1", 10) || 1),
     size: 50,
@@ -71,20 +78,20 @@ export default async function CatalogDatabasePage({ searchParams }: { searchPara
       />
       <CatalogTabs />
 
-      {/* Stats globales */}
+      {/* Stats globales — cliquables : chaque carte applique son filtre. */}
       <div className="mb-5 grid grid-cols-2 gap-2 sm:grid-cols-3 lg:grid-cols-7">
-        <Stat label="Total" value={stats.total} />
-        <Stat label="Avec photo" value={stats.with_photo} />
-        <Stat label="Sans photo" value={stats.without_photo} tone="text-rose-600" />
-        <Stat label="Avec score" value={stats.with_score} />
-        <Stat label="Sans score" value={stats.without_score} tone="text-rose-600" />
-        <Stat label="Sans INCI" value={stats.without_inci} tone="text-rose-600" />
-        <Stat label="Pénalisants" value={stats.penalizing} tone="text-orange-600" />
-        <Stat label="Score INCI Beauty" value={stats.source_incibeauty} />
-        <Stat label="Web / notre analyse" value={stats.source_web} />
-        <Stat label="Actifs" value={stats.active} />
-        <Stat label="Inactifs" value={stats.inactive} tone="text-rose-600" />
-        <Stat label="Vrai code-barre" value={stats.real_ean} />
+        <Stat label="Total" value={stats.total} href="/catalog/database" />
+        <Stat label="Avec photo" value={stats.with_photo} href="/catalog/database?photo=with" />
+        <Stat label="Sans photo" value={stats.without_photo} tone="text-rose-600" href="/catalog/database?photo=without" />
+        <Stat label="Avec score" value={stats.with_score} href="/catalog/database?score=with" />
+        <Stat label="Sans score" value={stats.without_score} tone="text-rose-600" href="/catalog/database?score=without" />
+        <Stat label="Sans INCI" value={stats.without_inci} tone="text-rose-600" href="/catalog/database?inci=without" />
+        <Stat label="Pénalisants" value={stats.penalizing} tone="text-orange-600" href="/catalog/database?penalizing=with" />
+        <Stat label="Score INCI Beauty" value={stats.source_incibeauty} href="/catalog/database?source=incibeauty" />
+        <Stat label="Web / notre analyse" value={stats.source_web} href="/catalog/database?source=web" />
+        <Stat label="Actifs" value={stats.active} href="/catalog/database?active=active" />
+        <Stat label="Inactifs" value={stats.inactive} tone="text-rose-600" href="/catalog/database?active=inactive" />
+        <Stat label="Code-barre seul" value={stats.only_barcode} tone="text-amber-600" href="/catalog/database?only_barcode=1" />
       </div>
 
       <CatalogDbFilters />
@@ -102,7 +109,11 @@ export default async function CatalogDatabasePage({ searchParams }: { searchPara
           </thead>
           <tbody>
             {list.rows.length === 0 ? (
-              <tr><td colSpan={4} className="px-3 py-10 text-center text-muted-foreground">Aucun produit pour ces filtres.</td></tr>
+              <tr><td colSpan={4} className="px-3 py-10 text-center text-muted-foreground">
+                {list.timedOut
+                  ? "Recherche trop longue (timeout). Affine les filtres ou précise la recherche."
+                  : "Aucun produit pour ces filtres."}
+              </td></tr>
             ) : (
               list.rows.map((p) => (
                 <tr key={p.ean} className="border-b border-black/[0.04] last:border-0 hover:bg-white">

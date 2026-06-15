@@ -41,7 +41,7 @@ export default async function PromisesPage() {
             <tbody>
               {rows.map((r) => (
                 <tr key={r.id} className="border-b border-black/[0.04] last:border-0 hover:bg-white">
-                  <td className="px-3 py-2.5">
+                  <td className="px-3 py-2.5 align-top">
                     {r.ean ? (
                       <Link href={`/catalog/database/${encodeURIComponent(r.ean)}`} className="font-medium text-foreground hover:text-rose-600">
                         {r.product_name ?? "—"}
@@ -50,6 +50,14 @@ export default async function PromisesPage() {
                       <span className="font-medium">{r.product_name ?? "—"}</span>
                     )}
                     <span className="block text-[11px] text-muted-foreground">{r.brand ?? "—"}{r.ean ? ` · ${r.ean}` : ""}</span>
+                    {r.description && (
+                      <details className="mt-1.5 max-w-xl">
+                        <summary className="cursor-pointer text-[11px] font-medium text-rose-600">Voir la description analysée</summary>
+                        <p className="mt-1 whitespace-pre-wrap rounded-lg bg-slate-50 p-2 text-[11px] leading-relaxed text-slate-600 ring-1 ring-black/[0.04]">
+                          {r.description}
+                        </p>
+                      </details>
+                    )}
                   </td>
                   <td className="px-3 py-2.5 text-[12px] text-muted-foreground">
                     {r.verdict ?? (r.score !== null ? `Score ${r.score}` : "—")}

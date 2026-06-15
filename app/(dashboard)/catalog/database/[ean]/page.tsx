@@ -4,6 +4,7 @@ import { notFound } from "next/navigation";
 import { ArrowLeft, ImageOff, ExternalLink, FileText, CheckCircle2 } from "lucide-react";
 import { fetchCatalogProduct } from "@/lib/queries/catalogDb";
 import { cn } from "@/lib/utils";
+import { ProductPhotoEditor } from "./ProductPhotoEditor";
 
 export const metadata = { title: "Produit — base" };
 export const dynamic = "force-dynamic";
@@ -69,6 +70,12 @@ export default async function CatalogProductDetail({
         </div>
       </div>
 
+      {/* Photo (voir / modifier) */}
+      <section className="mt-4 rounded-2xl bg-white/70 p-4 ring-1 ring-black/[0.05]">
+        <h2 className="mb-3 text-[13px] font-semibold">Photo</h2>
+        <ProductPhotoEditor ean={p.ean} imageUrl={p.image_url} />
+      </section>
+
       {/* INCI */}
       <section className="mt-4 rounded-2xl bg-white/70 p-4 ring-1 ring-black/[0.05]">
         <h2 className="mb-2 flex items-center gap-1.5 text-[13px] font-semibold"><FileText className="h-4 w-4" /> Liste INCI</h2>
@@ -109,7 +116,9 @@ export default async function CatalogProductDetail({
           </>
         ) : (
           <p className="text-[12px] text-muted-foreground">
-            Aucune analyse en cache pour ce produit (il sera analysé au premier scan/recherche).
+            Pas encore d'analyse en cache pour ce produit (fréquent pour les produits issus du web).
+            Le détail coloré des ingrédients apparaîtra dès qu'un utilisateur l'analyse dans l'app
+            (scan / recherche), ce qui remplit le cache `product_analyses`.
           </p>
         )}
       </section>

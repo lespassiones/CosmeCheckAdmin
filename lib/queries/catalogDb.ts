@@ -6,6 +6,7 @@
  * Server-only, supabaseAdmin (service_role).
  */
 import "server-only";
+import { unstable_cache } from "next/cache";
 import { supabaseAdmin } from "@/lib/supabase";
 
 export type CatalogStats = {
@@ -23,12 +24,29 @@ export type CatalogStats = {
   inactive: number;
   real_ean: number;
   synthetic_ean: number;
+  only_barcode: number;
 };
 
+// Stats = scan complet de 405k → on les CACHE 5 min (elles bougent peu) pour ne
+// PAS rescanner la base à chaque chargement de page (cause de l'écran blanc).
+const _statsCached = unstable_cache(
+  async (): Promise<CatalogStats | null> => {
+    const sb = supabaseAdmin();
+    const { data, error } = await sb.rpc("cosme_check_catalog_admin_stats");
+    if (error) return null;
+    return data as CatalogStats;
+  },
+  ["catalog-admin-stats-v2"],
+  { revalidate: 300 },
+);
+
 export async function fetchCatalogStats(): Promise<CatalogStats> {
-  const sb = supabaseAdmin();
-  const { data } = await sb.rpc("cosme_check_catalog_admin_stats");
-  return (data as CatalogStats) ?? ({} as CatalogStats);
+  const data = await _statsCached();
+  return data ?? ({
+    total: 0, with_photo: 0, without_photo: 0, with_score: 0, without_score: 0,
+    with_inci: 0, without_inci: 0, source_web: 0, source_incibeauty: 0,
+    penalizing: 0, active: 0, inactive: 0, real_ean: 0, synthetic_ean: 0, only_barcode: 0,
+  });
 }
 
 export type CatalogProductRow = {
@@ -57,6 +75,8 @@ export type CatalogFilters = {
   source?: "web" | "incibeauty";
   penalizing?: "with" | "without";
   active?: "active" | "inactive";
+  /** Produits « code-barre seul » (stubs : pas de marque/INCI/photo). */
+  onlyBarcode?: boolean;
   category?: string;
   page?: number;
   size?: number;
@@ -67,46 +87,47 @@ export type CatalogListResult = {
   page: number;
   size: number;
   hasMore: boolean;
+  /** True si la recherche a échoué/timeout (≥10s) → on l'affiche à l'admin. */
+  timedOut: boolean;
 };
 
-const COLS =
-  "ean, brand, name, category, image_url, source_url, score, score_label, score_tone, count_total, has_penalizing, is_active, count_orange, count_rouge";
-
+/**
+ * Liste filtrée via la RPC indexée `cosme_check_admin_catalog_search` : recherche
+ * texte servie par l'index GIN trigram (pas de seq-scan), statement_timeout 10s
+ * côté DB → ne sature jamais la base. On demande size+1 lignes pour savoir s'il
+ * reste une page.
+ */
 export async function listCatalogProducts(f: CatalogFilters): Promise<CatalogListResult> {
   const sb = supabaseAdmin();
   const page = Math.max(1, f.page ?? 1);
   const size = Math.min(100, Math.max(10, f.size ?? 50));
-  const from = (page - 1) * size;
-  // +1 pour savoir s'il reste une page.
-  const to = from + size;
+  const offset = (page - 1) * size;
 
-  let q = sb.schema("cosme_check").from("catalog").select(COLS);
+  const { data, error } = await sb.rpc("cosme_check_admin_catalog_search", {
+    p_q: f.q ?? null,
+    p_photo: f.photo ?? null,
+    p_score: f.score ?? null,
+    p_inci: f.inci ?? null,
+    p_source: f.source ?? null,
+    p_penalizing: f.penalizing ?? null,
+    p_active: f.active ?? null,
+    p_only_barcode: f.onlyBarcode ?? false,
+    p_category: f.category ?? null,
+    p_limit: size + 1,
+    p_offset: offset,
+  });
 
-  if (f.q && f.q.trim().length >= 2) {
-    const term = f.q.trim().replace(/[%,]/g, " ");
-    q = q.or(`brand.ilike.%${term}%,name.ilike.%${term}%`);
+  if (error) {
+    // statement_timeout (57014) ou autre → on n'écroule pas la page.
+    return { rows: [], page, size, hasMore: false, timedOut: true };
   }
-  if (f.photo === "with") q = q.not("image_url", "is", null);
-  if (f.photo === "without") q = q.is("image_url", null);
-  if (f.score === "with") q = q.not("score", "is", null);
-  if (f.score === "without") q = q.is("score", null);
-  if (f.inci === "with") q = q.not("ingredients_text", "is", null);
-  if (f.inci === "without") q = q.is("ingredients_text", null);
-  if (f.source === "web") q = q.not("source_url", "is", null);
-  if (f.source === "incibeauty") q = q.is("source_url", null);
-  if (f.penalizing === "with") q = q.eq("has_penalizing", true);
-  if (f.penalizing === "without") q = q.or("has_penalizing.is.null,has_penalizing.eq.false");
-  if (f.active === "active") q = q.eq("is_active", true);
-  if (f.active === "inactive") q = q.or("is_active.is.null,is_active.eq.false");
-  if (f.category && f.category.trim()) q = q.ilike("category", `%${f.category.trim()}%`);
-
-  q = q.order("score", { ascending: false, nullsFirst: false }).order("ean", { ascending: true }).range(from, to);
-
-  const { data } = await q;
   const all = (data as CatalogProductRow[] | null) ?? [];
   const hasMore = all.length > size;
-  return { rows: all.slice(0, size), page, size, hasMore };
+  return { rows: all.slice(0, size), page, size, hasMore, timedOut: false };
 }
+
+const COLS =
+  "ean, brand, name, category, image_url, source_url, score, score_label, score_tone, count_total, has_penalizing, is_active, count_orange, count_rouge";
 
 export type CatalogProductDetail = {
   product: CatalogProductRow & { ingredients_text: string | null };

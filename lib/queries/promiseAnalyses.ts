@@ -12,6 +12,7 @@ export type PromiseAnalysisRow = {
   product_name: string | null;
   brand: string | null;
   ean: string | null;
+  description: string | null;
   verdict: string | null;
   score: number | null;
   created_at: string;
@@ -44,11 +45,11 @@ export async function listPromiseAnalyses(limit = 100): Promise<PromiseAnalysisR
   const { data } = await sb
     .schema("cosme_check")
     .from("coherence_analyses")
-    .select("id, analysis_id, result_json, created_at")
+    .select("id, analysis_id, description, result_json, created_at")
     .order("created_at", { ascending: false })
     .limit(Math.min(limit, 300));
 
-  const rows = (data as { id: string; analysis_id: string | null; result_json: unknown; created_at: string }[] | null) ?? [];
+  const rows = (data as { id: string; analysis_id: string | null; description: string | null; result_json: unknown; created_at: string }[] | null) ?? [];
   const ids = rows.map((r) => r.analysis_id).filter((x): x is string => !!x);
 
   const byId = new Map<string, { name: string | null; product_label: string | null; brand: string | null; ean: string | null }>();
@@ -71,6 +72,7 @@ export async function listPromiseAnalyses(limit = 100): Promise<PromiseAnalysisR
       product_name: a?.product_label ?? a?.name ?? null,
       brand: a?.brand ?? null,
       ean: a?.ean ?? null,
+      description: r.description,
       verdict: pickVerdict(r.result_json),
       score: pickScore(r.result_json),
       created_at: r.created_at,

@@ -37,6 +37,10 @@ const SELECTS: SelectDef[] = [
     { value: "active", label: "Actifs" },
     { value: "inactive", label: "Inactifs" },
   ] },
+  { key: "only_barcode", label: "Type", options: [
+    { value: "", label: "Type : tous" },
+    { value: "1", label: "Code-barre seul" },
+  ] },
 ];
 
 export function CatalogDbFilters() {
@@ -91,6 +95,7 @@ export function CatalogDbFilters() {
         {SELECTS.map((s) => (
           <select
             key={s.key}
+            aria-label={s.label}
             value={params.get(s.key) ?? ""}
             onChange={(e) => apply({ [s.key]: e.target.value })}
             className="rounded-xl border border-black/[0.08] bg-white px-3 py-1.5 text-[12px] outline-none focus:ring-2 focus:ring-rose-200"
