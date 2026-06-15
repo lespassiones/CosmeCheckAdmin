@@ -4,6 +4,7 @@ import { ImageOff } from "lucide-react";
 import { PageHeader } from "@/components/PageHeader";
 import { CatalogTabs } from "@/components/catalog/CatalogTabs";
 import { CatalogDbFilters } from "./CatalogDbFilters";
+import { StubResolverPanel } from "./StubResolverPanel";
 import {
   fetchCatalogStats,
   listCatalogProducts,
@@ -96,6 +97,11 @@ export default async function CatalogDatabasePage({ searchParams }: { searchPara
 
       <CatalogDbFilters />
 
+      {/* Résolveur GPT — visible quand on filtre les « code-barre seul ». */}
+      {filters.onlyBarcode && list.rows.length > 0 && (
+        <StubResolverPanel eans={list.rows.map((r) => r.ean)} />
+      )}
+
       {/* Table */}
       <div className="overflow-hidden rounded-2xl bg-white/70 ring-1 ring-black/[0.05]">
         <table className="w-full text-left text-[13px]">
@@ -149,13 +155,30 @@ export default async function CatalogDatabasePage({ searchParams }: { searchPara
         </table>
       </div>
 
-      {/* Pagination */}
-      <div className="mt-4 flex items-center justify-between text-[13px]">
-        <span className="text-muted-foreground">Page {list.page}</span>
-        <div className="flex gap-2">
+      {/* Pagination — 50/page, numéros autour de la page courante + Suivant. */}
+      <div className="mt-4 flex flex-wrap items-center justify-between gap-2 text-[13px]">
+        <span className="text-muted-foreground">50 par page · page {list.page}</span>
+        <div className="flex items-center gap-1.5">
           {list.page > 1 && (
             <Link href={pageHref(list.page - 1)} className="rounded-lg bg-white px-3 py-1.5 ring-1 ring-black/[0.08] hover:bg-slate-50">← Précédent</Link>
           )}
+          {Array.from({ length: 5 }, (_, i) => list.page - 2 + i)
+            .filter((p) => p >= 1 && (p <= list.page || list.hasMore))
+            .map((p) => (
+              <Link
+                key={p}
+                href={pageHref(p)}
+                aria-current={p === list.page ? "page" : undefined}
+                className={cn(
+                  "min-w-[34px] rounded-lg px-2.5 py-1.5 text-center ring-1",
+                  p === list.page
+                    ? "bg-rose-600 text-white ring-rose-600"
+                    : "bg-white ring-black/[0.08] hover:bg-slate-50",
+                )}
+              >
+                {p}
+              </Link>
+            ))}
           {list.hasMore && (
             <Link href={pageHref(list.page + 1)} className="rounded-lg bg-white px-3 py-1.5 ring-1 ring-black/[0.08] hover:bg-slate-50">Suivant →</Link>
           )}

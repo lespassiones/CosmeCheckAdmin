@@ -13,22 +13,26 @@ export type PromiseAnalysisRow = {
   brand: string | null;
   ean: string | null;
   description: string | null;
-  verdict: string | null;
-  score: number | null;
+  /** % de promesses tenues (metrics.tenuePct) — le verdict montré à l'user. */
+  tenuePct: number | null;
+  tenueCount: number | null;
+  totalPromises: number | null;
+  /** Texte de conclusion (verdict détaillé). */
+  conclusion: string | null;
   created_at: string;
 };
 
-function pickScore(rj: unknown): number | null {
-  if (!rj || typeof rj !== "object") return null;
-  const o = rj as Record<string, unknown>;
-  const s = o.score ?? o.globalScore ?? o.coherenceScore;
-  return typeof s === "number" ? s : null;
+type Metrics = { tenuePct?: number; tenueCount?: number; totalPromises?: number };
+
+function metricsOf(rj: unknown): Metrics {
+  if (!rj || typeof rj !== "object") return {};
+  const m = (rj as Record<string, unknown>).metrics;
+  return (m && typeof m === "object" ? (m as Metrics) : {}) ?? {};
 }
-function pickVerdict(rj: unknown): string | null {
+function conclusionOf(rj: unknown): string | null {
   if (!rj || typeof rj !== "object") return null;
-  const o = rj as Record<string, unknown>;
-  const v = o.verdict ?? o.verdictLabel ?? (o.conclusion as Record<string, unknown> | undefined)?.verdict;
-  return typeof v === "string" ? v : null;
+  const c = (rj as Record<string, unknown>).conclusion;
+  return typeof c === "string" ? c : null;
 }
 
 export async function fetchPromiseStats(): Promise<{ total: number; products: number }> {
@@ -73,8 +77,10 @@ export async function listPromiseAnalyses(limit = 100): Promise<PromiseAnalysisR
       brand: a?.brand ?? null,
       ean: a?.ean ?? null,
       description: r.description,
-      verdict: pickVerdict(r.result_json),
-      score: pickScore(r.result_json),
+      tenuePct: typeof metricsOf(r.result_json).tenuePct === "number" ? metricsOf(r.result_json).tenuePct! : null,
+      tenueCount: typeof metricsOf(r.result_json).tenueCount === "number" ? metricsOf(r.result_json).tenueCount! : null,
+      totalPromises: typeof metricsOf(r.result_json).totalPromises === "number" ? metricsOf(r.result_json).totalPromises! : null,
+      conclusion: conclusionOf(r.result_json),
       created_at: r.created_at,
     };
   });

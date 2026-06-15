@@ -5,7 +5,7 @@ import { StatCard } from "@/components/StatCard";
 import { EmptyState } from "@/components/EmptyState";
 import { CatalogTabs } from "@/components/catalog/CatalogTabs";
 import { fetchPromiseStats, listPromiseAnalyses } from "@/lib/queries/promiseAnalyses";
-import { formatInt, formatRelative } from "@/lib/utils";
+import { formatInt, formatRelative, cn } from "@/lib/utils";
 
 export const metadata = { title: "Analyses de promesse" };
 export const dynamic = "force-dynamic";
@@ -50,17 +50,34 @@ export default async function PromisesPage() {
                       <span className="font-medium">{r.product_name ?? "—"}</span>
                     )}
                     <span className="block text-[11px] text-muted-foreground">{r.brand ?? "—"}{r.ean ? ` · ${r.ean}` : ""}</span>
-                    {r.description && (
-                      <details className="mt-1.5 max-w-xl">
-                        <summary className="cursor-pointer text-[11px] font-medium text-rose-600">Voir la description analysée</summary>
-                        <p className="mt-1 whitespace-pre-wrap rounded-lg bg-slate-50 p-2 text-[11px] leading-relaxed text-slate-600 ring-1 ring-black/[0.04]">
-                          {r.description}
-                        </p>
+                    {(r.description || r.conclusion) && (
+                      <details className="mt-1.5 max-w-2xl">
+                        <summary className="cursor-pointer text-[11px] font-medium text-rose-600">Voir la description + verdict</summary>
+                        {r.conclusion && (
+                          <p className="mt-1 rounded-lg bg-emerald-50/60 p-2 text-[11px] leading-relaxed text-emerald-900 ring-1 ring-emerald-200/50">
+                            <span className="font-semibold">Verdict : </span>{r.conclusion}
+                          </p>
+                        )}
+                        {r.description && (
+                          <p className="mt-1 whitespace-pre-wrap rounded-lg bg-slate-50 p-2 text-[11px] leading-relaxed text-slate-600 ring-1 ring-black/[0.04]">
+                            <span className="font-semibold">Promesse analysée : </span>{r.description}
+                          </p>
+                        )}
                       </details>
                     )}
                   </td>
-                  <td className="px-3 py-2.5 text-[12px] text-muted-foreground">
-                    {r.verdict ?? (r.score !== null ? `Score ${r.score}` : "—")}
+                  <td className="px-3 py-2.5 align-top">
+                    {r.tenuePct !== null ? (
+                      <span className={cn(
+                        "inline-block rounded-full px-2 py-0.5 text-[12px] font-semibold tabular-nums",
+                        r.tenuePct >= 75 ? "bg-emerald-50 text-emerald-700 ring-1 ring-emerald-200/60"
+                          : r.tenuePct >= 50 ? "bg-amber-50 text-amber-700 ring-1 ring-amber-200/60"
+                          : "bg-rose-50 text-rose-700 ring-1 ring-rose-200/60",
+                      )}>
+                        {r.tenuePct}% tenues
+                        {r.totalPromises ? ` · ${r.tenueCount ?? 0}/${r.totalPromises}` : ""}
+                      </span>
+                    ) : "—"}
                   </td>
                   <td className="px-3 py-2.5 text-right text-[11px] text-muted-foreground">{formatRelative(r.created_at)}</td>
                 </tr>
