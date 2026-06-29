@@ -29,9 +29,13 @@ export default function UserCreditsOverride() {
   const [search, setSearch] = useState('')
   const [editingUser, setEditingUser] = useState<string | null>(null)
   const [message, setMessage] = useState<{ type: 'success' | 'error'; text: string } | null>(null)
-  const [overrideForm, setOverrideForm] = useState({
+  const [overrideForm, setOverrideForm] = useState<{
+    credit_amount: number
+    renewal_period: 'one_time' | 'daily' | 'weekly' | 'monthly' | 'yearly'
+    note: string
+  }>({
     credit_amount: 100,
-    renewal_period: 'monthly' as const,
+    renewal_period: 'monthly',
     note: '',
   })
 
@@ -250,7 +254,7 @@ export default function UserCreditsOverride() {
               <select
                 value={overrideForm.renewal_period}
                 onChange={(e) =>
-                  setOverrideForm({ ...overrideForm, renewal_period: e.target.value })
+                  setOverrideForm({ ...overrideForm, renewal_period: e.target.value as 'one_time' | 'daily' | 'weekly' | 'monthly' | 'yearly' })
                 }
                 className="mt-1 w-full rounded-lg border border-slate-300 px-3 py-2"
               >
