@@ -15,11 +15,11 @@ interface UserCredit {
 }
 
 const renewalPeriodLabels: Record<string, string> = {
-  none: 'Unique',
-  daily: 'Quotidien',
-  weekly: 'Hebdomadaire',
-  monthly: 'Mensuel',
-  custom: 'Personnalisé',
+  one_time: '✨ Une seule fois',
+  daily: '📅 Par jour',
+  weekly: '📆 Par semaine',
+  monthly: '📊 Par mois',
+  yearly: '📈 Par an',
 }
 
 export default function UserCreditsOverride() {
@@ -31,8 +31,7 @@ export default function UserCreditsOverride() {
   const [message, setMessage] = useState<{ type: 'success' | 'error'; text: string } | null>(null)
   const [overrideForm, setOverrideForm] = useState({
     credit_amount: 100,
-    renewal_period: 'monthly',
-    renewal_interval_days: 30,
+    renewal_period: 'monthly' as const,
     note: '',
   })
 
@@ -43,15 +42,15 @@ export default function UserCreditsOverride() {
       if (!res.ok) throw new Error('Failed to load users')
       const data = await res.json()
       // Map API response to UserCredit format
-      const mappedUsers = data.users.map((u: any) => ({
+      const mappedUsers = data.data.map((u: any) => ({
         user_id: u.id,
         email: u.email || u.id,
         tier: u.tier,
-        credit_amount: u.creditConfig?.credit_amount || 0,
-        renewal_period: u.creditConfig?.renewal_period || 'none',
-        has_override: u.hasOverride,
+        credit_amount: u.creditAmount || 0,
+        renewal_period: u.renewalPeriod || 'daily',
+        has_override: u.hasOverride || false,
         today_used: 0,
-        today_limit: u.creditConfig?.credit_amount || 0,
+        today_limit: u.creditAmount || 0,
       }))
       setUsers(mappedUsers)
       setFiltered(mappedUsers)
@@ -87,8 +86,7 @@ export default function UserCreditsOverride() {
           userId,
           creditAmount: overrideForm.credit_amount,
           renewalPeriod: overrideForm.renewal_period,
-          renewalIntervalDays:
-            overrideForm.renewal_period === 'custom' ? overrideForm.renewal_interval_days : null,
+          renewalIntervalDays: null,
         }),
       })
 
@@ -212,8 +210,7 @@ export default function UserCreditsOverride() {
                         setEditingUser(user.user_id)
                         setOverrideForm({
                           credit_amount: user.credit_amount,
-                          renewal_period: user.renewal_period,
-                          renewal_interval_days: 30,
+                          renewal_period: user.renewal_period as 'one_time' | 'daily' | 'weekly' | 'monthly' | 'yearly',
                           note: '',
                         })
                       }}

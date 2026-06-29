@@ -6,7 +6,7 @@ import { AlertCircle, Check } from 'lucide-react'
 interface CreditTier {
   tier: string
   credit_amount: number
-  renewal_period: 'none' | 'daily' | 'weekly' | 'monthly' | 'custom'
+  renewal_period: 'one_time' | 'daily' | 'weekly' | 'monthly' | 'yearly'
   renewal_interval_days: number | null
 }
 
@@ -16,11 +16,11 @@ interface Props {
 }
 
 const renewalPeriodLabels: Record<string, string> = {
-  none: 'Non renouvelable (usage unique)',
-  daily: 'Quotidien',
-  weekly: 'Hebdomadaire',
-  monthly: 'Mensuel',
-  custom: 'Personnalisé',
+  one_time: '✨ Une seule fois',
+  daily: '📅 Par jour',
+  weekly: '📆 Par semaine',
+  monthly: '📊 Par mois',
+  yearly: '📈 Par an',
 }
 
 export default function CreditTiersManager({ tiers, onUpdate }: Props) {
@@ -146,28 +146,6 @@ export default function CreditTiersManager({ tiers, onUpdate }: Props) {
                 </select>
               </div>
 
-              {/* Custom Interval (if custom period) */}
-              {forms[tier.tier]?.renewal_period === 'custom' && (
-                <div>
-                  <label className="block text-sm font-medium text-slate-700">
-                    Intervalle de renouvellement (en jours)
-                  </label>
-                  <input
-                    type="number"
-                    value={forms[tier.tier]?.renewal_interval_days || 30}
-                    onChange={(e) =>
-                      setForms({
-                        ...forms,
-                        [tier.tier]: {
-                          ...forms[tier.tier],
-                          renewal_interval_days: parseInt(e.target.value),
-                        },
-                      })
-                    }
-                    className="mt-1 w-full rounded-lg border border-slate-300 px-3 py-2"
-                  />
-                </div>
-              )}
 
               {/* Save Button */}
               <button
@@ -188,12 +166,6 @@ export default function CreditTiersManager({ tiers, onUpdate }: Props) {
                 <p className="text-sm text-slate-600">Renouvellement</p>
                 <p className="font-medium">{renewalPeriodLabels[tier.renewal_period]}</p>
               </div>
-              {tier.renewal_period === 'custom' && (
-                <div>
-                  <p className="text-sm text-slate-600">Intervalle</p>
-                  <p className="font-medium">{tier.renewal_interval_days} jours</p>
-                </div>
-              )}
             </div>
           )}
         </article>

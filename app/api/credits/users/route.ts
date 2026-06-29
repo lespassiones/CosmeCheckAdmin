@@ -18,18 +18,22 @@ export async function GET(request: NextRequest) {
     const usersWithCredits = await Promise.all(
       (users || []).map(async (user) => {
         const { data: config, error: configError } = await sb.rpc(
-          'cosme_check_get_credit_config',
+          'cosme_check_admin_get_user_credits_config',
           { p_user_id: user.id }
         )
+        const configData = config?.[0] || null
         return {
           ...user,
-          creditConfig: config,
-          hasOverride: config?.override_by ? true : false,
+          creditAmount: configData?.credit_amount || 0,
+          renewalPeriod: configData?.renewal_period || 'daily',
+          renewalIntervalDays: configData?.renewal_interval_days || null,
+          hasOverride: configData?.has_override || false,
+          overrideActive: configData?.override_active || false,
         }
       })
     )
 
-    return NextResponse.json({ users: usersWithCredits })
+    return NextResponse.json({ data: usersWithCredits })
   } catch (err) {
     console.error('Failed to get users:', err)
     return NextResponse.json(

@@ -9,7 +9,7 @@ import CreditAuditLog from './CreditAuditLog'
 interface CreditTier {
   tier: string
   credit_amount: number
-  renewal_period: 'none' | 'daily' | 'weekly' | 'monthly' | 'custom'
+  renewal_period: 'one_time' | 'daily' | 'weekly' | 'monthly' | 'yearly'
   renewal_interval_days: number | null
 }
 

@@ -17,7 +17,7 @@ export async function POST(request: NextRequest) {
 
     if (action === 'update_tier') {
       // Update tier configuration
-      const { error } = await sb.rpc('cosme_check_update_credit_tier', {
+      const { data, error } = await sb.rpc('cosme_check_admin_update_credit_tier', {
         p_tier: tier,
         p_credit_amount: creditAmount,
         p_renewal_period: renewalPeriod,
@@ -25,26 +25,31 @@ export async function POST(request: NextRequest) {
       })
 
       if (error) throw error
-      return NextResponse.json({ success: true, message: `Tier ${tier} updated` })
+      return NextResponse.json({ success: true, message: `Tier ${tier} updated`, data })
     } else if (action === 'set_override') {
       // Set user override
-      const { error } = await sb.rpc('cosme_check_set_user_credit_override', {
+      const { data, error } = await sb.rpc('cosme_check_admin_set_user_override', {
         p_user_id: userId,
         p_credit_amount: creditAmount,
         p_renewal_period: renewalPeriod,
         p_renewal_interval_days: renewalIntervalDays,
+        p_active: true,
       })
 
       if (error) throw error
-      return NextResponse.json({ success: true, message: `Override set for user` })
+      return NextResponse.json({ success: true, message: `Override set for user`, data })
     } else if (action === 'remove_override') {
-      // Remove user override
-      const { error } = await sb.rpc('cosme_check_remove_user_credit_override', {
+      // Remove user override by setting active=false
+      const { data, error } = await sb.rpc('cosme_check_admin_set_user_override', {
         p_user_id: userId,
+        p_credit_amount: 0,
+        p_renewal_period: 'one_time',
+        p_renewal_interval_days: null,
+        p_active: false,
       })
 
       if (error) throw error
-      return NextResponse.json({ success: true, message: `Override removed for user` })
+      return NextResponse.json({ success: true, message: `Override removed for user`, data })
     } else {
       return NextResponse.json(
         { error: 'Unknown action' },
