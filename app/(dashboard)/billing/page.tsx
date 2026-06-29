@@ -3,6 +3,7 @@ import { PageHeader, SectionHeader } from "@/components/PageHeader";
 import { StatCard } from "@/components/StatCard";
 import { supabaseAdmin } from "@/lib/supabase";
 import { formatEUR, formatInt } from "@/lib/utils";
+import RevenuecatStatsClient from "./RevenuecatStatsClient";
 
 export const metadata = { title: "Abonnements" };
 export const dynamic = "force-dynamic";
@@ -15,10 +16,7 @@ async function getBillingKpis() {
     .select("id", { count: "exact", head: true })
     .eq("tier", "premium");
   return {
-    mrr: 0, // Stripe not connected yet
     premiumUsers: premiumCount ?? 0,
-    churn30d: 0,
-    paymentFailures: 0,
   };
 }
 
@@ -30,53 +28,16 @@ export default async function BillingPage() {
       <PageHeader
         title="Abonnements"
         subtitle="Suivi des conversions Premium et du chiffre d'affaires récurrent."
-        actions={
-          <button
-            type="button"
-            disabled
-            className="btn-secondary cursor-not-allowed opacity-60"
-            title="Connectez Stripe pour activer le tracking complet"
-          >
-            <ArrowUpRight className="h-4 w-4" />
-            Connecter Stripe
-          </button>
-        }
       />
 
-      {/* KPI cards */}
-      <div className="mb-8 grid grid-cols-2 gap-3 sm:grid-cols-4">
-        <StatCard
-          label="MRR"
-          value={formatEUR(kpis.mrr)}
-          hint="revenu mensuel récurrent"
-          icon={TrendingUp}
-          tone="emerald"
-        />
-        <StatCard
-          label="Users Premium"
-          value={kpis.premiumUsers}
-          hint="abonnés actifs"
-          icon={Users}
-          tone="amber"
-        />
-        <StatCard
-          label="Churn 30 j"
-          value={formatInt(kpis.churn30d) + " %"}
-          hint="taux de désabonnement"
-          icon={AlertTriangle}
-          tone="rose"
-        />
-        <StatCard
-          label="Échecs paiement"
-          value={kpis.paymentFailures}
-          hint="à recouvrer"
-          icon={CreditCard}
-          tone="neutral"
-        />
-      </div>
+      {/* RevenueCat Stats Section */}
+      <RevenuecatStatsClient />
+
+      {/* Stripe Section (Future) */}
+      <SectionHeader title="Stripe (Paiements)" />
 
       {/* Setup hint */}
-      <article className="glass-card-rose p-6">
+      <article className="glass-card-rose p-6 mb-8">
         <div className="flex items-start gap-4">
           <span
             aria-hidden
