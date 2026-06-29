@@ -1,7 +1,6 @@
 'use client'
 
 import { useState, useEffect } from 'react'
-import { supabaseAdmin } from '@/lib/supabase'
 import { formatDistanceToNow } from 'date-fns'
 import { fr } from 'date-fns/locale'
 
@@ -31,13 +30,10 @@ export default function CreditAuditLog() {
   useEffect(() => {
     const loadLogs = async () => {
       try {
-        const sb = supabaseAdmin()
-        const { data, error } = await sb.rpc('cosme_check_admin_get_credit_audit_log', {
-          p_limit: 100,
-        })
-        if (!error && data) {
-          setLogs(data)
-        }
+        const res = await fetch('/api/credits/audit')
+        if (!res.ok) throw new Error('Failed to load logs')
+        const data = await res.json()
+        setLogs(data.audit)
       } catch (err) {
         console.error('Failed to load audit log:', err)
       } finally {

@@ -1,8 +1,7 @@
 'use client'
 
 import { useState, useEffect } from 'react'
-import { supabaseAdmin } from '@/lib/supabase'
-import { Search, Trash2, Plus, AlertCircle } from 'lucide-react'
+import { Search, Trash2, AlertCircle } from 'lucide-react'
 
 interface UserCredit {
   user_id: string
@@ -40,12 +39,22 @@ export default function UserCreditsOverride() {
   const loadUsers = async () => {
     setLoading(true)
     try {
-      const sb = supabaseAdmin()
-      const { data, error } = await sb.rpc('cosme_check_admin_get_users_credit_overview')
-      if (!error && data) {
-        setUsers(data)
-        setFiltered(data)
-      }
+      const res = await fetch('/api/credits/users')
+      if (!res.ok) throw new Error('Failed to load users')
+      const data = await res.json()
+      // Map API response to UserCredit format
+      const mappedUsers = data.users.map((u: any) => ({
+        user_id: u.id,
+        email: u.email || u.id,
+        tier: u.tier,
+        credit_amount: u.creditConfig?.credit_amount || 0,
+        renewal_period: u.creditConfig?.renewal_period || 'none',
+        has_override: u.hasOverride,
+        today_used: 0,
+        today_limit: u.creditConfig?.credit_amount || 0,
+      }))
+      setUsers(mappedUsers)
+      setFiltered(mappedUsers)
     } catch (err) {
       console.error('Failed to load users:', err)
     } finally {
@@ -70,17 +79,21 @@ export default function UserCreditsOverride() {
 
   const handleSetOverride = async (userId: string) => {
     try {
-      const sb = supabaseAdmin()
-      const { error } = await sb.rpc('cosme_check_set_user_credit_override', {
-        p_user_id: userId,
-        p_credit_amount: overrideForm.credit_amount,
-        p_renewal_period: overrideForm.renewal_period,
-        p_renewal_interval_days:
-          overrideForm.renewal_period === 'custom' ? overrideForm.renewal_interval_days : null,
-        p_note: overrideForm.note || null,
+      const res = await fetch('/api/credits/actions', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({
+          action: 'set_override',
+          userId,
+          creditAmount: overrideForm.credit_amount,
+          renewalPeriod: overrideForm.renewal_period,
+          renewalIntervalDays:
+            overrideForm.renewal_period === 'custom' ? overrideForm.renewal_interval_days : null,
+        }),
       })
 
-      if (error) throw error
+      const data = await res.json()
+      if (!res.ok) throw new Error(data.error || 'Update failed')
 
       setMessage({ type: 'success', text: 'Override appliqué avec succès' })
       setEditingUser(null)
@@ -92,12 +105,17 @@ export default function UserCreditsOverride() {
 
   const handleRemoveOverride = async (userId: string) => {
     try {
-      const sb = supabaseAdmin()
-      const { error } = await sb.rpc('cosme_check_remove_user_credit_override', {
-        p_user_id: userId,
+      const res = await fetch('/api/credits/actions', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({
+          action: 'remove_override',
+          userId,
+        }),
       })
 
-      if (error) throw error
+      const data = await res.json()
+      if (!res.ok) throw new Error(data.error || 'Update failed')
 
       setMessage({ type: 'success', text: 'Override supprimé' })
       loadUsers()

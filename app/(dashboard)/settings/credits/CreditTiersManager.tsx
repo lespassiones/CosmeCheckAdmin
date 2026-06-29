@@ -1,7 +1,6 @@
 'use client'
 
 import { useState } from 'react'
-import { supabaseAdmin } from '@/lib/supabase'
 import { AlertCircle, Check } from 'lucide-react'
 
 interface CreditTier {
@@ -38,15 +37,20 @@ export default function CreditTiersManager({ tiers, onUpdate }: Props) {
 
     setLoading(true)
     try {
-      const sb = supabaseAdmin()
-      const { error } = await sb.rpc('cosme_check_update_credit_tier', {
-        p_tier: tier,
-        p_credit_amount: forms[tier].credit_amount,
-        p_renewal_period: forms[tier].renewal_period,
-        p_renewal_interval_days: forms[tier].renewal_interval_days || null,
+      const res = await fetch('/api/credits/actions', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({
+          action: 'update_tier',
+          tier,
+          creditAmount: forms[tier].credit_amount,
+          renewalPeriod: forms[tier].renewal_period,
+          renewalIntervalDays: forms[tier].renewal_interval_days || null,
+        }),
       })
 
-      if (error) throw error
+      const data = await res.json()
+      if (!res.ok) throw new Error(data.error || 'Update failed')
 
       setMessage({ type: 'success', text: `Tier ${tier} mis à jour avec succès` })
       setEditing(null)
