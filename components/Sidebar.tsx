@@ -12,6 +12,7 @@ import {
   ShieldAlert,
   Cog,
   CreditCard,
+  Coins,
   SlidersHorizontal,
   MessageSquare,
   LogOut,
@@ -37,6 +38,7 @@ const NAV: NavItem[] = [
   { href: "/catalog/web-products", label: "Produits web", icon: Globe },
   { href: "/security", label: "Sécurité", icon: ShieldAlert },
   { href: "/system", label: "Système", icon: Cog },
+  { href: "/settings/credits", label: "Gestion des crédits", icon: Coins },
   { href: "/settings", label: "Paramètres", icon: SlidersHorizontal },
   { href: "/billing", label: "Abonnements", icon: CreditCard, badge: "Soon" },
 ];
