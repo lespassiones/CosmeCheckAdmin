@@ -120,30 +120,34 @@ export default function CreditTiersManager({ tiers, onUpdate }: Props) {
                 />
               </div>
 
-              {/* Renewal Period */}
+              {/* Renewal Period - Radio Buttons */}
               <div>
-                <label className="block text-sm font-medium text-slate-700">
+                <label className="block text-sm font-medium text-slate-700 mb-3">
                   Fréquence de renouvellement
                 </label>
-                <select
-                  value={forms[tier.tier]?.renewal_period || 'none'}
-                  onChange={(e) =>
-                    setForms({
-                      ...forms,
-                      [tier.tier]: {
-                        ...forms[tier.tier],
-                        renewal_period: e.target.value as any,
-                      },
-                    })
-                  }
-                  className="mt-1 w-full rounded-lg border border-slate-300 px-3 py-2"
-                >
+                <div className="space-y-2">
                   {Object.entries(renewalPeriodLabels).map(([key, label]) => (
-                    <option key={key} value={key}>
-                      {label}
-                    </option>
+                    <label key={key} className="flex items-center gap-3 cursor-pointer p-2 rounded hover:bg-slate-100">
+                      <input
+                        type="radio"
+                        name={`renewal-${tier.tier}`}
+                        value={key}
+                        checked={forms[tier.tier]?.renewal_period === key}
+                        onChange={(e) =>
+                          setForms({
+                            ...forms,
+                            [tier.tier]: {
+                              ...forms[tier.tier],
+                              renewal_period: e.target.value as any,
+                            },
+                          })
+                        }
+                        className="w-4 h-4 text-violet-600"
+                      />
+                      <span className="text-sm">{label}</span>
+                    </label>
                   ))}
-                </select>
+                </div>
               </div>
 
 

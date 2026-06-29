@@ -75,7 +75,8 @@ async function UsersTable({ search }: { search: string }) {
               <th className="px-5 py-3 text-left font-medium">Email</th>
               <th className="px-5 py-3 text-left font-medium">Prénom</th>
               <th className="px-5 py-3 text-left font-medium">Tier</th>
-              <th className="px-5 py-3 text-right font-medium">Crédits jour</th>
+              <th className="px-5 py-3 text-right font-medium">Crédits</th>
+              <th className="px-5 py-3 text-left font-medium">Renouvellement</th>
               <th className="px-5 py-3 text-left font-medium">Dernière connexion</th>
               <th className="px-5 py-3 text-left font-medium">Inscrit</th>
               <th className="px-5 py-3 text-right font-medium" />
@@ -126,6 +127,9 @@ async function UsersTable({ search }: { search: string }) {
                     >
                       {u.credits_used_today} / {u.credits_limit_today}
                     </span>
+                  </td>
+                  <td className="px-5 py-3 text-sm text-muted-foreground">
+                    {u.tier === "premium" ? "📊 Par mois" : "📅 Par jour"}
                   </td>
                   <td className="px-5 py-3 text-muted-foreground">
                     {u.last_sign_in_at
