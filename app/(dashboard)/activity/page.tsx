@@ -104,9 +104,9 @@ async function ActivityKpis() {
         tone="rose"
       />
       <StatCard
-        label="Scans OCR aujourd'hui"
-        value={kpis.ocrScansToday}
-        hint="photos étiquettes traitées"
+        label="Scans code-barres aujourd'hui"
+        value={kpis.barcodeScansToday}
+        hint="codes-barres scannés"
         icon={ScanLine}
         tone="violet"
       />
@@ -131,7 +131,7 @@ async function ActivityKpis() {
 async function ActivityTrends() {
   const trend = await fetchActivityTrend(30);
   const totalAnalyses30d = trend.reduce((s, p) => s + p.analyses, 0);
-  const totalOcr30d = trend.reduce((s, p) => s + p.ocr, 0);
+  const totalBarcode30d = trend.reduce((s, p) => s + p.barcode, 0);
   return (
     <div className="mb-8 grid grid-cols-1 gap-4 lg:grid-cols-2">
       <article className="neo-card p-5">
@@ -148,15 +148,15 @@ async function ActivityTrends() {
       </article>
       <article className="neo-card p-5">
         <p className="mb-1 text-[11px] uppercase tracking-wider text-muted-foreground">
-          Scans OCR par jour
+          Scans code-barres par jour
         </p>
         <p className="mb-3 text-[20px] font-semibold tabular-nums">
-          {formatInt(totalOcr30d)}
+          {formatInt(totalBarcode30d)}
           <span className="ml-1.5 text-[12px] font-normal text-muted-foreground">
             sur 30 j
           </span>
         </p>
-        <ActivityTrendChart data={trend} series="ocr" />
+        <ActivityTrendChart data={trend} series="barcode" />
       </article>
     </div>
   );

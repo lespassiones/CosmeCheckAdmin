@@ -5,47 +5,40 @@ import { requireAdmin } from "@/lib/authGuard";
 import { supabaseAdmin } from "@/lib/supabase";
 import { logAudit } from "@/lib/audit";
 
-export type ActionResult =
-  | { ok: true; cascadedRows: number }
-  | { ok: false; error: string };
+export type ActionResult = { ok: true } | { ok: false; error: string };
 
-export type CreditScope = "all" | "free" | "premium";
+/** Editable global app settings (rebuilt Paramètres page). */
+export type AppConfigPatch = {
+  signup_default_tier?: "free" | "premium";
+  signups_open?: boolean;
+  flag_deep_search?: boolean;
+  flag_suggestions?: boolean;
+  flag_advisor?: boolean;
+  flag_public_share?: boolean;
+  ai_cost_alert_daily_usd?: string;
+  ai_cost_alert_monthly_usd?: string;
+  maintenance_mode?: boolean;
+  maintenance_message?: string;
+};
 
-export async function setDefaultDailyLimit(formData: FormData): Promise<ActionResult> {
+/**
+ * Persist global app config (cosme_check.app_config). Only the keys present in
+ * `patch` are changed. Apps read the public subset via cosme_check_get_app_config.
+ */
+export async function saveAppConfig(patch: AppConfigPatch): Promise<ActionResult> {
   const admin = await requireAdmin();
-  const newDefault = Number(formData.get("new_default") ?? NaN);
-  const cascadeToday = formData.get("cascade_today") === "on";
-  const scopeRaw = String(formData.get("scope") ?? "all");
-  const scope: CreditScope = scopeRaw === "free" || scopeRaw === "premium" ? scopeRaw : "all";
-
-  if (!Number.isFinite(newDefault) || newDefault < 0 || newDefault > 100_000) {
-    return { ok: false, error: "Valeur invalide (0–100 000)." };
-  }
-
   const sb = supabaseAdmin();
-  const { data, error } = await sb.rpc("cosme_check_admin_set_default_daily_limit", {
-    p_new_default: Math.floor(newDefault),
-    p_cascade_today: cascadeToday,
-    p_scope: scope,
+  const { error } = await sb.rpc("cosme_check_admin_set_app_config", {
+    p: { ...patch, updated_by: admin.email },
   });
-
   if (error) return { ok: false, error: error.message };
-
-  const result = data as { ok: boolean; error?: string; cascaded_rows?: number };
-  if (!result?.ok) return { ok: false, error: result?.error ?? "Échec inconnu." };
 
   await logAudit({
     adminEmail: admin.email,
-    action: "credits.set_default",
-    payload: {
-      new_default: Math.floor(newDefault),
-      cascade_today: cascadeToday,
-      scope,
-      cascaded_rows: result.cascaded_rows ?? 0,
-    },
+    action: "settings.update",
+    payload: patch as Record<string, unknown>,
   });
 
   revalidatePath("/settings");
-  revalidatePath("/users");
-  return { ok: true, cascadedRows: result.cascaded_rows ?? 0 };
+  return { ok: true };
 }

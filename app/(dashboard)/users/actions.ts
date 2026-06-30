@@ -7,28 +7,98 @@ import { logAudit } from "@/lib/audit";
 
 export type ActionResult = { ok: true } | { ok: false; error: string };
 
-/** Set the user's daily credit limit for today. */
-export async function setDailyLimit(formData: FormData): Promise<ActionResult> {
+const PERIODS = ["one_time", "daily", "weekly", "monthly", "yearly"] as const;
+type Period = (typeof PERIODS)[number];
+
+/**
+ * Grant one-off BONUS credits to a user (additive, non-renewable). These sit on
+ * top of the renewal allocation and are consumed only once the period quota is
+ * exhausted — exactly "donner X crédits" without touching the daily limit.
+ * Works immediately on web AND mobile (both read cosme_check_get_credits).
+ */
+export async function grantBonusCredits(formData: FormData): Promise<ActionResult> {
   const admin = await requireAdmin();
   const userId = String(formData.get("user_id") ?? "");
-  const newLimit = Number(formData.get("limit") ?? 0);
-
-  if (!userId || !Number.isFinite(newLimit) || newLimit < 0 || newLimit > 100_000) {
-    return { ok: false, error: "Limite invalide." };
+  const amount = Number(formData.get("amount") ?? 0);
+  const note = String(formData.get("note") ?? "").slice(0, 300) || null;
+  if (!userId) return { ok: false, error: "user_id manquant." };
+  if (!Number.isFinite(amount) || amount === 0 || Math.abs(amount) > 100_000) {
+    return { ok: false, error: "Montant invalide." };
   }
 
   const sb = supabaseAdmin();
-  const { error } = await sb.rpc("cosme_check_admin_set_daily_limit", {
+  const { data, error } = await sb.rpc("cosme_check_admin_grant_credits", {
     p_user_id: userId,
-    p_new_limit: Math.floor(newLimit),
+    p_amount: Math.floor(amount),
+    p_note: note,
+    p_admin: admin.email,
+  });
+  if (error) return { ok: false, error: error.message };
+  if (data && (data as { ok?: boolean }).ok === false) {
+    return { ok: false, error: (data as { error?: string }).error ?? "Échec." };
+  }
+
+  await logAudit({
+    adminEmail: admin.email,
+    action: "credits.grant_bonus",
+    targetUserId: userId,
+    payload: { amount: Math.floor(amount), note },
+  });
+
+  revalidatePath(`/users/${userId}`);
+  revalidatePath("/users");
+  return { ok: true };
+}
+
+/**
+ * Set a per-user credit OVERRIDE (replaces the tier config for this user):
+ * a custom amount + renewal period. Use for "ce user a 50 crédits / semaine".
+ */
+export async function setUserOverride(formData: FormData): Promise<ActionResult> {
+  const admin = await requireAdmin();
+  const userId = String(formData.get("user_id") ?? "");
+  const amount = Number(formData.get("amount") ?? 0);
+  const period = String(formData.get("period") ?? "") as Period;
+  if (!userId) return { ok: false, error: "user_id manquant." };
+  if (!Number.isFinite(amount) || amount < 0 || amount > 100_000) {
+    return { ok: false, error: "Montant invalide." };
+  }
+  if (!PERIODS.includes(period)) return { ok: false, error: "Période invalide." };
+
+  const sb = supabaseAdmin();
+  const { error } = await sb.rpc("cosme_check_admin_set_override", {
+    p_user_id: userId,
+    p_credit_amount: Math.floor(amount),
+    p_renewal_period: period,
   });
   if (error) return { ok: false, error: error.message };
 
   await logAudit({
     adminEmail: admin.email,
-    action: "credits.set_limit",
+    action: "credits.override_set",
     targetUserId: userId,
-    payload: { new_limit: Math.floor(newLimit) },
+    payload: { amount: Math.floor(amount), period },
+  });
+
+  revalidatePath(`/users/${userId}`);
+  revalidatePath("/users");
+  return { ok: true };
+}
+
+/** Remove a per-user override (revert to the tier config). */
+export async function clearUserOverride(formData: FormData): Promise<ActionResult> {
+  const admin = await requireAdmin();
+  const userId = String(formData.get("user_id") ?? "");
+  if (!userId) return { ok: false, error: "user_id manquant." };
+
+  const sb = supabaseAdmin();
+  const { error } = await sb.rpc("cosme_check_admin_clear_override", { p_user_id: userId });
+  if (error) return { ok: false, error: error.message };
+
+  await logAudit({
+    adminEmail: admin.email,
+    action: "credits.override_clear",
+    targetUserId: userId,
   });
 
   revalidatePath(`/users/${userId}`);

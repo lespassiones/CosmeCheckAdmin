@@ -13,7 +13,7 @@ import { supabaseAdmin } from "@/lib/supabase";
 
 export type ActivityKpis = {
   analysesToday: number;
-  ocrScansToday: number;
+  barcodeScansToday: number;
   coherenceToday: number;
   advisorMessagesToday: number;
 };
@@ -24,7 +24,7 @@ export async function fetchActivityKpis(): Promise<ActivityKpis> {
   today.setUTCHours(0, 0, 0, 0);
   const sinceIso = today.toISOString();
 
-  const [analysesRes, ocrRes, coherenceRes, advisorRes] = await Promise.all([
+  const [analysesRes, barcodeRes, coherenceRes, advisorRes] = await Promise.all([
     sb
       .schema("cosme_check")
       .from("analyses")
@@ -32,9 +32,9 @@ export async function fetchActivityKpis(): Promise<ActivityKpis> {
       .gte("created_at", sinceIso),
     sb
       .schema("cosme_check")
-      .from("ai_logs")
+      .from("scan_events")
       .select("id", { count: "exact", head: true })
-      .eq("feature", "ocr")
+      .eq("kind", "barcode")
       .gte("created_at", sinceIso),
     sb
       .schema("cosme_check")
@@ -51,18 +51,18 @@ export async function fetchActivityKpis(): Promise<ActivityKpis> {
 
   return {
     analysesToday: analysesRes.count ?? 0,
-    ocrScansToday: ocrRes.count ?? 0,
+    barcodeScansToday: barcodeRes.count ?? 0,
     coherenceToday: coherenceRes.count ?? 0,
     advisorMessagesToday: advisorRes.count ?? 0,
   };
 }
 
-// ─── Daily trend (analyses + ocr) ─────────────────────────────────────────
+// ─── Daily trend (analyses + barcode scans) ───────────────────────────────
 
 export type ActivityTrendPoint = {
   day: string;
   analyses: number;
-  ocr: number;
+  barcode: number;
 };
 
 export async function fetchActivityTrend(days = 30): Promise<ActivityTrendPoint[]> {
@@ -72,7 +72,7 @@ export async function fetchActivityTrend(days = 30): Promise<ActivityTrendPoint[
   since.setUTCDate(since.getUTCDate() - (days - 1));
   const sinceIso = since.toISOString();
 
-  const [analysesRes, ocrRes] = await Promise.all([
+  const [analysesRes, barcodeRes] = await Promise.all([
     sb
       .schema("cosme_check")
       .from("analyses")
@@ -80,9 +80,9 @@ export async function fetchActivityTrend(days = 30): Promise<ActivityTrendPoint[
       .gte("created_at", sinceIso),
     sb
       .schema("cosme_check")
-      .from("ai_logs")
+      .from("scan_events")
       .select("created_at")
-      .eq("feature", "ocr")
+      .eq("kind", "barcode")
       .gte("created_at", sinceIso),
   ]);
 
@@ -90,7 +90,7 @@ export async function fetchActivityTrend(days = 30): Promise<ActivityTrendPoint[
   for (let i = 0; i < days; i++) {
     const d = new Date(since.getTime() + i * 86_400_000);
     const key = d.toISOString().slice(0, 10);
-    buckets.set(key, { day: key, analyses: 0, ocr: 0 });
+    buckets.set(key, { day: key, analyses: 0, barcode: 0 });
   }
 
   for (const a of (analysesRes.data ?? []) as { created_at: string }[]) {
@@ -98,10 +98,10 @@ export async function fetchActivityTrend(days = 30): Promise<ActivityTrendPoint[
     const b = buckets.get(key);
     if (b) b.analyses += 1;
   }
-  for (const l of (ocrRes.data ?? []) as { created_at: string }[]) {
+  for (const l of (barcodeRes.data ?? []) as { created_at: string }[]) {
     const key = l.created_at.slice(0, 10);
     const b = buckets.get(key);
-    if (b) b.ocr += 1;
+    if (b) b.barcode += 1;
   }
 
   return Array.from(buckets.values());

@@ -10,6 +10,14 @@ import { formatRelative, cn } from "@/lib/utils";
 export const metadata = { title: "Utilisateurs" };
 export const dynamic = "force-dynamic";
 
+const RENEWAL_LABELS: Record<string, string> = {
+  one_time: "✨ Une seule fois",
+  daily: "📅 Par jour",
+  weekly: "📆 Par semaine",
+  monthly: "📊 Par mois",
+  yearly: "📈 Par an",
+};
+
 type SearchParams = { q?: string };
 
 export default async function UsersPage({
@@ -127,9 +135,14 @@ async function UsersTable({ search }: { search: string }) {
                     >
                       {u.credits_used_today} / {u.credits_limit_today}
                     </span>
+                    {u.credits_bonus > 0 && (
+                      <span className="ml-1 inline-block rounded-full bg-emerald-50 px-2 py-0.5 text-[11px] font-medium tabular-nums text-emerald-700">
+                        +{u.credits_bonus}
+                      </span>
+                    )}
                   </td>
                   <td className="px-5 py-3 text-sm text-muted-foreground">
-                    {u.tier === "premium" ? "📊 Par mois" : "📅 Par jour"}
+                    {RENEWAL_LABELS[u.renewal_period] ?? u.renewal_period}
                   </td>
                   <td className="px-5 py-3 text-muted-foreground">
                     {u.last_sign_in_at

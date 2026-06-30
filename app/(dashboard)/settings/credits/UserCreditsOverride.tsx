@@ -53,7 +53,7 @@ export default function UserCreditsOverride() {
         credit_amount: u.creditAmount || 0,
         renewal_period: u.renewalPeriod || 'daily',
         has_override: u.hasOverride || false,
-        today_used: 0,
+        today_used: u.usedPeriod ?? 0,
         today_limit: u.creditAmount || 0,
       }))
       setUsers(mappedUsers)

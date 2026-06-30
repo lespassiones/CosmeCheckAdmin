@@ -11,11 +11,11 @@ import {
 } from "recharts";
 import type { ActivityTrendPoint } from "@/lib/queries/activity";
 
-type Series = "analyses" | "ocr";
+type Series = "analyses" | "barcode";
 
 const SERIES_META: Record<Series, { label: string; color: string }> = {
   analyses: { label: "Analyses", color: "#F43F5E" },
-  ocr: { label: "Scans OCR", color: "#0EA5E9" },
+  barcode: { label: "Scans code-barres", color: "#0EA5E9" },
 };
 
 /**

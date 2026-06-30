@@ -28,6 +28,14 @@ import { DangerActions } from "./DangerActions";
 
 export const dynamic = "force-dynamic";
 
+const RENEWAL_LABELS: Record<string, string> = {
+  one_time: "Une seule fois",
+  daily: "Par jour",
+  weekly: "Par semaine",
+  monthly: "Par mois",
+  yearly: "Par an",
+};
+
 export async function generateMetadata(
   { params }: { params: Promise<{ id: string }> },
 ) {
@@ -158,7 +166,7 @@ async function UserDetailBody({ userId }: { userId: string }) {
           icon={Sparkles}
           tone="violet"
         />
-        <StatCard label="Scans OCR" value={user.total_ocr_calls} icon={Scan} />
+        <StatCard label="Scans code-barres" value={user.total_barcode_scans} icon={Scan} />
         <StatCard
           label="Messages advisor"
           value={user.total_advisor_msgs}
@@ -180,7 +188,14 @@ async function UserDetailBody({ userId }: { userId: string }) {
                 </span>
               </p>
               <p className="mt-1 text-[12px] text-muted-foreground">
-                Reste {user.credits_limit_today - user.credits_used_today} crédits
+                Reste {Math.max(0, user.credits_limit_today - user.credits_used_today) + user.credits_bonus} crédits
+                {user.credits_bonus > 0 && (
+                  <span className="ml-1 text-emerald-600">(dont {user.credits_bonus} bonus)</span>
+                )}
+              </p>
+              <p className="mt-0.5 text-[11px] text-muted-foreground">
+                Renouvellement : {RENEWAL_LABELS[user.renewal_period]}
+                {user.has_override && <span className="ml-1 text-amber-600">· override</span>}
               </p>
             </div>
             <span
@@ -206,7 +221,9 @@ async function UserDetailBody({ userId }: { userId: string }) {
 
           <CreditsAdjuster
             userId={user.id}
-            currentLimit={user.credits_limit_today}
+            limit={user.credits_limit_today}
+            renewalPeriod={user.renewal_period}
+            hasOverride={user.has_override}
           />
         </article>
 
@@ -231,9 +248,16 @@ async function UserDetailBody({ userId }: { userId: string }) {
               </p>
             </div>
           </div>
-          <p className="mt-4 text-[12px] text-muted-foreground">
-            Total cumulé sur toute la vie du compte.
-          </p>
+          <div className="mt-4 flex items-center justify-between border-t border-black/[0.04] pt-3">
+            <p className="text-[12px] text-muted-foreground">
+              Coût IA estimé (toute la vie du compte)
+            </p>
+            <p className="text-[18px] font-semibold tabular-nums text-rose-700">
+              {user.total_ai_cost_usd < 0.01 && user.total_ai_cost_usd > 0
+                ? "< $0,01"
+                : `$${user.total_ai_cost_usd.toFixed(2)}`}
+            </p>
+          </div>
         </article>
       </div>
 
