@@ -14,6 +14,7 @@ import {
   Coins,
   SlidersHorizontal,
   MessageSquare,
+  Wallet,
   LogOut,
   type LucideIcon,
 } from "lucide-react";
@@ -38,6 +39,7 @@ const NAV: NavItem[] = [
   { href: "/settings/credits", label: "Gestion des crédits", icon: Coins },
   { href: "/settings", label: "Paramètres", icon: SlidersHorizontal },
   { href: "/billing", label: "Abonnements", icon: CreditCard, badge: "Soon" },
+  { href: "/finance", label: "Finance", icon: Wallet },
   // Système + Sécurité fusionnés (sous-onglets), tout en bas.
   { href: "/system", label: "Système", icon: Cog },
 ];
