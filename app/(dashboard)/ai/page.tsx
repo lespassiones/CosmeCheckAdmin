@@ -17,13 +17,14 @@ import {
 } from "@/components/Skeletons";
 import {
   fetchAiKpis,
-  fetchAiDailyCostSeries,
   fetchAiBreakdowns,
   fetchAiCacheStats,
   fetchProductInciCacheStats,
 } from "@/lib/queries/ai";
 import { formatInt, formatUSD, formatRelative } from "@/lib/utils";
 import { PurgeCacheButton } from "./PurgeCacheButton";
+import { fetchRealAiCost, ensureFreshCosts } from "@/lib/openai/costs";
+import { RefreshCostsButton } from "./RefreshCostsButton";
 
 export const metadata = { title: "Coûts IA & Cache" };
 export const dynamic = "force-dynamic";
@@ -33,22 +34,27 @@ function formatPercent(n: number): string {
   return `${(n * 100).toFixed(1)} %`;
 }
 
-export default function AiPage() {
+export default async function AiPage() {
+  // Autonome : synchronise les coûts réels depuis OpenAI si périmé (no-op sans clé).
+  await ensureFreshCosts();
   return (
     <>
       <PageHeader
         title="Coûts IA & Cache"
-        subtitle="Tokens consommés, dépenses estimées, efficacité du cache."
+        subtitle="Coûts RÉELS OpenAI (API Costs) + efficacité du cache."
       />
 
-      <SectionHeader title="Indicateurs clés" />
+      <SectionHeader
+        title="Indicateurs clés"
+        actions={<RefreshCostsButton />}
+      />
       <Suspense fallback={<StatCardsRow count={4} />}>
         <AiKpis />
       </Suspense>
 
       <SectionHeader
         title="Coût IA quotidien"
-        subtitle="30 derniers jours · estimation en USD"
+        subtitle="30 derniers jours · RÉEL (OpenAI Costs) en USD"
       />
       <Suspense fallback={<ChartCardSkeleton rows={1} />}>
         <DailyCostChart />
@@ -56,7 +62,7 @@ export default function AiPage() {
 
       <SectionHeader
         title="Décomposition par feature"
-        subtitle="30 derniers jours · trié par coût"
+        subtitle="30 derniers jours · ESTIMATION par feature (ai_logs, indicatif)"
       />
       <SectionHeader
         title="Décomposition par provider"
@@ -88,27 +94,28 @@ export default function AiPage() {
 }
 
 async function AiKpis() {
-  const kpis = await fetchAiKpis();
+  const [real, kpis] = await Promise.all([fetchRealAiCost(), fetchAiKpis()]);
+  const costHint = real.hasData ? "réel · OpenAI" : "clé admin OpenAI manquante";
   return (
     <div className="mb-8 grid grid-cols-2 gap-3 sm:grid-cols-2 lg:grid-cols-4">
       <StatCard
         label="Coût aujourd'hui"
-        value={formatUSD(kpis.costTodayUSD, 3)}
-        hint="estimé · gpt-4o-mini"
+        value={formatUSD(real.today, 3)}
+        hint={costHint}
         icon={Coins}
         tone="rose"
       />
       <StatCard
         label="Coût 7 derniers jours"
-        value={formatUSD(kpis.cost7dUSD, 3)}
-        hint="cumul 7 j"
+        value={formatUSD(real.last7, 3)}
+        hint={real.hasData ? "cumul 7 j · réel" : costHint}
         icon={Wallet}
         tone="amber"
       />
       <StatCard
         label="Coût 30 derniers jours"
-        value={formatUSD(kpis.cost30dUSD, 3)}
-        hint="cumul 30 j"
+        value={formatUSD(real.last30, 2)}
+        hint={real.hasData ? "cumul 30 j · réel" : costHint}
         icon={CalendarRange}
         tone="violet"
       />
@@ -124,8 +131,14 @@ async function AiKpis() {
 }
 
 async function DailyCostChart() {
-  const series = await fetchAiDailyCostSeries(30);
-  const cumulativeCost = series.reduce((s, p) => s + p.cost_usd, 0);
+  const real = await fetchRealAiCost();
+  const series = real.series.map((p) => ({
+    day: p.date,
+    analyses: 0,
+    signups: 0,
+    cost_usd: p.cost,
+  }));
+  const cumulativeCost = real.last30;
   return (
     <article className="neo-card mb-8 p-5">
       <p className="mb-1 text-[11px] uppercase tracking-wider text-muted-foreground">
