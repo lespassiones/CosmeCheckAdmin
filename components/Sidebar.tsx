@@ -9,7 +9,6 @@ import {
   Sparkles,
   Package,
   Globe,
-  ShieldAlert,
   Cog,
   CreditCard,
   Coins,
@@ -36,11 +35,11 @@ const NAV: NavItem[] = [
   { href: "/ai", label: "Coûts IA & Cache", icon: Sparkles },
   { href: "/catalog/database", label: "Catalogue", icon: Package },
   { href: "/catalog/web-products", label: "Produits web", icon: Globe },
-  { href: "/security", label: "Sécurité", icon: ShieldAlert },
-  { href: "/system", label: "Système", icon: Cog },
   { href: "/settings/credits", label: "Gestion des crédits", icon: Coins },
   { href: "/settings", label: "Paramètres", icon: SlidersHorizontal },
   { href: "/billing", label: "Abonnements", icon: CreditCard, badge: "Soon" },
+  // Système + Sécurité fusionnés (sous-onglets), tout en bas.
+  { href: "/system", label: "Système", icon: Cog },
 ];
 
 function isActive(pathname: string, href: string): boolean {

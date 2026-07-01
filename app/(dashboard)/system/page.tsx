@@ -9,7 +9,7 @@ import {
   Server,
   Timer,
 } from "lucide-react";
-import { PageHeader, SectionHeader } from "@/components/PageHeader";
+import { SectionHeader } from "@/components/PageHeader";
 import { EmptyState } from "@/components/EmptyState";
 import { CardSkeleton, TableSkeleton } from "@/components/Skeletons";
 import {
@@ -78,10 +78,6 @@ const LARGE_TABLE_THRESHOLD_BYTES = 100 * 1024 * 1024;
 export default function SystemPage() {
   return (
     <>
-      <PageHeader
-        title="Système"
-        subtitle="Santé infra, cron jobs Supabase, tailles DB."
-      />
 
       <SectionHeader
         title="Health check — CosmetWiki main app"
