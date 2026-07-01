@@ -40,6 +40,7 @@ export default async function ProductModerationPage({
       <PageHeader
         title="Retours utilisateurs"
         subtitle="Signalements d'erreur et photos proposées sur les produits analysés."
+        info="Signalements d'erreur (nom, marque, composition) et photos proposées par les utilisateurs sur un produit. À modérer avant d'intégrer les corrections au catalogue."
       />
       <FeedbackSectionTabs active="products" pendingPhotos={pending.photos} />
 

@@ -18,6 +18,7 @@ export default async function PromisesPage() {
       <PageHeader
         title="Analyses de promesse"
         subtitle="Produits dont la promesse marketing a été analysée (cohérence). Le résultat non-personnalisé est mis en cache cross-user."
+        info="Produits dont la promesse marketing a été analysée (cohérence formule vs promesse). Le résultat non-personnalisé est caché et réutilisé entre utilisateurs."
       />
       <CatalogTabs />
 

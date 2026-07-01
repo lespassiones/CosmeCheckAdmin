@@ -25,6 +25,7 @@ export default function OverviewPage() {
       <PageHeader
         title="Vue d'ensemble"
         subtitle="Tout l'état de CosmetWiki en un coup d'œil."
+        info="Tableau de bord global : utilisateurs, analyses, coûts et santé de l'app, en direct depuis Supabase. Point d'entrée pour surveiller l'activité réelle (mobile + web)."
       />
 
       <SectionHeader title="Métriques temps réel" />

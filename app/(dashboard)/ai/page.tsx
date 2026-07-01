@@ -42,6 +42,7 @@ export default async function AiPage() {
       <PageHeader
         title="Coûts IA & Cache"
         subtitle="Coûts RÉELS OpenAI (API Costs) + efficacité du cache."
+        info="Dépenses IA RÉELLES tirées de l'API OpenAI Costs (= ta facture, en USD), synchronisées automatiquement. La décomposition par feature est indicative (calculée depuis ai_logs). Les caches réduisent les appels payants."
       />
 
       <SectionHeader

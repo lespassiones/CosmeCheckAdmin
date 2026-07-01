@@ -21,6 +21,7 @@ export default function WebProductsPage() {
       <PageHeader
         title="Produits web"
         subtitle="Produits trouvés sur internet sans code-barres — donc absents du catalogue. Retrouve leur EAN (GPT) pour les ajouter aux 400k autres."
+        info="Produits trouvés sur internet sans code-barres (absents du catalogue). Retrouve leur EAN via GPT pour les intégrer aux 400k autres."
       />
       <Suspense fallback={<StatCardsRow count={3} />}>
         <WebProductsBody />

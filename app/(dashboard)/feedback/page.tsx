@@ -47,6 +47,7 @@ export default async function FeedbackPage({ searchParams }: { searchParams: Sea
       <PageHeader
         title="Retours utilisateurs"
         subtitle="Avis (notes 1-5) et messages reçus via la page Contact."
+        info="Avis, notes (1 à 5) et messages laissés via la page Contact du site. Sert à suivre la satisfaction et repérer les problèmes remontés."
       />
       <FeedbackSectionTabs active="reviews" pendingPhotos={pending.photos} />
 

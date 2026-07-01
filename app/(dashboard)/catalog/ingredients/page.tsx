@@ -74,6 +74,7 @@ export default async function CatalogIngredientsPage({
       <PageHeader
         title="Ingrédients"
         subtitle="Base INCI · couleurs, explications AI, prévalence."
+        info="Base INCI : couleur de tolérance (vert à rouge), explication grand public générée par IA, et prévalence dans le catalogue."
         actions={
           <div className="flex items-center gap-2">
             <form method="GET" className="relative">

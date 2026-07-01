@@ -28,6 +28,7 @@ export default async function BillingPage() {
       <PageHeader
         title="Abonnements"
         subtitle="Suivi des conversions Premium et du chiffre d'affaires récurrent."
+        info="Suivi des abonnements Premium et du revenu récurrent (MRR). RevenueCat pas encore branché : les valeurs se rempliront à l'activation des achats."
       />
 
       {/* RevenueCat Stats Section */}

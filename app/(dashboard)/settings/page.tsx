@@ -42,6 +42,7 @@ export default async function SettingsPage() {
       <PageHeader
         title="Paramètres"
         subtitle="Configuration globale de l'app (inscription, fonctionnalités, coûts, maintenance)."
+        info="Configuration globale lue au runtime par le mobile ET le web : ouverture des inscriptions, activation des features (flags), coût en crédits par feature, mode maintenance."
       />
 
       <SectionHeader title="Coûts IA — état des alertes" subtitle="Dépense estimée vs seuils configurés ci-dessous." />

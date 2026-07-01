@@ -122,6 +122,7 @@ export default async function CatalogDatabasePage({ searchParams }: { searchPara
       <PageHeader
         title="Base produits"
         subtitle="La vraie base servie à l'app mobile (cosme_check.catalog). Filtre, inspecte, ouvre un produit."
+        info="La vraie base servie à l'app mobile (cosme_check.catalog, ~490k produits avec score et INCI). Filtre, inspecte, ouvre un produit."
       />
       <CatalogTabs />
 

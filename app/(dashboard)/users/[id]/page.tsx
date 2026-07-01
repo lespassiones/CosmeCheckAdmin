@@ -100,6 +100,7 @@ async function UserDetailBody({ userId }: { userId: string }) {
       <PageHeader
         title={user.first_name || user.email.split("@")[0]!}
         subtitle={user.email}
+        info="Fiche complète : profil, tier, crédits et activité. Ajuste ses crédits ici (bonus additif ponctuel ou override de la limite quotidienne)."
       />
 
       {/* Identity strip */}

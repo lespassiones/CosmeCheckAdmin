@@ -55,6 +55,7 @@ export default async function CatalogProductsPage({
       <CatalogTabs />
       <PageHeader
         title="Produits du catalogue"
+        info="Vue liste brute de la table products (source d'import), distincte de la Base produits réellement servie à l'app mobile."
         subtitle={`Liste complète${search ? ` · recherche "${search}"` : ""}${missingInci ? " · sans INCI" : ""}.`}
         actions={
           <form method="GET" className="relative">

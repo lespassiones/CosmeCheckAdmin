@@ -32,6 +32,7 @@ export default async function CreditsPage() {
       <PageHeader
         title="Gestion des crédits"
         subtitle="Configurer les crédits pour les tiers Free et Premium"
+        info="Barème de crédits par tier (Free / Premium) : allocation et période de renouvellement (jour/semaine/mois). Appliqué à tous les utilisateurs du tier."
       />
 
       <CreditsPageClient initialTiers={initialTiers} />

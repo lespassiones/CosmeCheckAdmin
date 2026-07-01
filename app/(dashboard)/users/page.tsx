@@ -33,6 +33,7 @@ export default async function UsersPage({
       <PageHeader
         title="Utilisateurs"
         subtitle="Liste de tous les comptes — clique sur un utilisateur pour gérer ses crédits."
+        info="Tous les comptes (mobile + web) avec leur tier et leur activité. Clique un utilisateur pour ajuster ses crédits (bonus ponctuel ou override de limite)."
         actions={
           <form method="GET" className="relative">
             <Search className="pointer-events-none absolute left-3 top-1/2 h-4 w-4 -translate-y-1/2 text-muted-foreground" />

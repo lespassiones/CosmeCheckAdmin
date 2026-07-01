@@ -44,6 +44,7 @@ export default async function DailyPicksPage({
       <PageHeader
         title="Daily Picks"
         subtitle="Cartes rotatives quiz et mythes affichées en home."
+        info="Cartes quiz et idées reçues affichées en rotation sur l'accueil de l'app. Gère leur contenu et leur activation."
       />
 
       <SectionHeader title="Vue d'ensemble" />

@@ -54,6 +54,7 @@ export default function ActivityPage() {
       <PageHeader
         title="Activité"
         subtitle="Vue temps réel des analyses, tous utilisateurs confondus."
+        info="Flux en direct de toutes les analyses de produits (mobile + web), tous comptes confondus. Sert à voir l'usage réel minute par minute."
       />
 
       <SectionHeader title="Aujourd'hui" subtitle="Activité produite par tous les utilisateurs" />
