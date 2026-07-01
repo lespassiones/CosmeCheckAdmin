@@ -44,6 +44,10 @@ export type FinanceOverview = {
   provisionRemainingEUR: number;
   // Série 12 mois pour le graphe.
   series: { month: string; ai: number; recurring: number; oneTime: number; total: number }[];
+  // IA quotidienne (EUR) sur ~12 mois — pour le filtre de période côté client.
+  aiDailyEUR: { day: string; eur: number }[];
+  // Run-rate récurrent mensuel (pour ventiler par jour côté client).
+  recurringMonthlyRunRate: number;
 };
 
 const monthKey = (d: Date) => `${d.getUTCFullYear()}-${String(d.getUTCMonth() + 1).padStart(2, "0")}`;
@@ -78,13 +82,16 @@ export async function fetchFinanceOverview(): Promise<FinanceOverview> {
 
   // IA par mois, converti en EUR.
   const aiByMonth = new Map<string, number>();
+  const aiDailyEUR: { day: string; eur: number }[] = [];
   let aiConsumedTotalEUR = 0;
   for (const r of aiDaily) {
     const eur = Number(r.amount_usd) * USD_TO_EUR;
     const key = r.day.slice(0, 7); // YYYY-MM
     aiByMonth.set(key, (aiByMonth.get(key) ?? 0) + eur);
+    aiDailyEUR.push({ day: r.day, eur: Number(eur.toFixed(4)) });
     aiConsumedTotalEUR += eur;
   }
+  aiDailyEUR.sort((a, b) => a.day.localeCompare(b.day));
 
   const active = expenses.filter((e) => e.active);
   const perMonthEUR = (e: Expense) =>
@@ -143,5 +150,7 @@ export async function fetchFinanceOverview(): Promise<FinanceOverview> {
     aiConsumedTotalEUR,
     provisionRemainingEUR,
     series,
+    aiDailyEUR,
+    recurringMonthlyRunRate: recurringMonthlyEUR,
   };
 }

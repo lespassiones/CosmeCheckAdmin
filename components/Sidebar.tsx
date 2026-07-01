@@ -1,5 +1,6 @@
 "use client";
 
+import { useEffect, useState } from "react";
 import Link from "next/link";
 import { usePathname } from "next/navigation";
 import {
@@ -16,6 +17,8 @@ import {
   MessageSquare,
   Wallet,
   LogOut,
+  Menu,
+  X,
   type LucideIcon,
 } from "lucide-react";
 import { cn } from "@/lib/utils";
@@ -116,25 +119,114 @@ export function Sidebar({ adminEmail }: { adminEmail: string }) {
 }
 
 /**
- * Mobile shell — drawer-less, simplified. The admin is mostly desktop, but
- * we keep a compact top bar so the dashboard is still readable on phones.
+ * Mobile shell — barre du haut avec BURGER MENU qui ouvre un drawer contenant
+ * la navigation complète (mêmes items que la sidebar desktop) + email + logout.
+ * Se ferme au clic sur un lien, sur le backdrop, ou au changement de route.
  */
 export function MobileTopBar({ adminEmail }: { adminEmail: string }) {
+  const pathname = usePathname() ?? "/";
+  const [open, setOpen] = useState(false);
+
+  // Fermer le drawer à chaque navigation.
+  useEffect(() => {
+    setOpen(false);
+  }, [pathname]);
+
   return (
-    <div className="lg:hidden sticky top-0 z-30 flex items-center justify-between gap-3 border-b border-black/[0.04] bg-white/80 px-4 py-3 backdrop-blur-xl">
-      <Link href="/" className="flex items-center gap-2">
-        <span className="grid h-8 w-8 place-items-center rounded-lg bg-gradient-to-br from-rose-500 to-rose-600 text-white">
-          <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth={2} strokeLinecap="round" strokeLinejoin="round" className="h-4 w-4">
-            <path d="M9 2v6L3 18a3 3 0 0 0 3 4h12a3 3 0 0 0 3-4L15 8V2" />
-            <path d="M9 2h6" />
-          </svg>
-        </span>
-        <span className="text-[14px] font-bold tracking-tight">
-          Cosme <span className="text-rose-500">Check</span>{" "}
-          <span className="text-muted-foreground">Admin</span>
-        </span>
-      </Link>
-      <span className="truncate text-[11px] text-muted-foreground">{adminEmail}</span>
-    </div>
+    <>
+      <div className="lg:hidden sticky top-0 z-30 flex items-center justify-between gap-3 border-b border-black/[0.04] bg-white/80 px-4 py-3 backdrop-blur-xl">
+        <div className="flex min-w-0 items-center gap-2">
+          <button
+            type="button"
+            onClick={() => setOpen(true)}
+            aria-label="Ouvrir le menu"
+            className="grid h-9 w-9 shrink-0 place-items-center rounded-lg bg-white/70 ring-1 ring-black/[0.06]"
+          >
+            <Menu className="h-5 w-5" />
+          </button>
+          <Link href="/" className="flex min-w-0 items-center gap-2">
+            <span className="grid h-8 w-8 shrink-0 place-items-center rounded-lg bg-gradient-to-br from-rose-500 to-rose-600 text-white">
+              <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth={2} strokeLinecap="round" strokeLinejoin="round" className="h-4 w-4">
+                <path d="M9 2v6L3 18a3 3 0 0 0 3 4h12a3 3 0 0 0 3-4L15 8V2" />
+                <path d="M9 2h6" />
+              </svg>
+            </span>
+            <span className="truncate text-[14px] font-bold tracking-tight">
+              Cosme <span className="text-rose-500">Check</span>
+            </span>
+          </Link>
+        </div>
+        <span className="max-w-[35%] truncate text-[11px] text-muted-foreground">{adminEmail}</span>
+      </div>
+
+      {/* Drawer plein écran (mobile uniquement) */}
+      {open && (
+        <div className="lg:hidden fixed inset-0 z-50">
+          <div
+            className="absolute inset-0 bg-black/40 backdrop-blur-sm"
+            onClick={() => setOpen(false)}
+            aria-hidden
+          />
+          <aside className="absolute left-0 top-0 flex h-full w-72 max-w-[85%] flex-col gap-2 overflow-y-auto bg-white p-4 shadow-2xl">
+            <div className="mb-1 flex items-center justify-between px-1">
+              <Link href="/" onClick={() => setOpen(false)} className="flex items-center gap-2">
+                <span className="grid h-9 w-9 place-items-center rounded-xl bg-gradient-to-br from-rose-500 to-rose-600 text-white">
+                  <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth={2} strokeLinecap="round" strokeLinejoin="round" className="h-5 w-5">
+                    <path d="M9 2v6L3 18a3 3 0 0 0 3 4h12a3 3 0 0 0 3-4L15 8V2" />
+                    <path d="M9 2h6" />
+                  </svg>
+                </span>
+                <span className="text-[15px] font-bold tracking-tight">
+                  Cosme <span className="text-rose-500">Check</span>
+                </span>
+              </Link>
+              <button
+                type="button"
+                onClick={() => setOpen(false)}
+                aria-label="Fermer le menu"
+                className="grid h-8 w-8 place-items-center rounded-lg hover:bg-black/5"
+              >
+                <X className="h-5 w-5" />
+              </button>
+            </div>
+
+            <nav className="mt-1 flex flex-1 flex-col gap-1">
+              {NAV.map(({ href, label, icon: Icon, badge }) => {
+                const active = isActive(pathname, href);
+                return (
+                  <Link
+                    key={href}
+                    href={href}
+                    onClick={() => setOpen(false)}
+                    aria-current={active ? "page" : undefined}
+                    className={cn("sidebar-link", active && "sidebar-link-active")}
+                  >
+                    <Icon className="h-[18px] w-[18px] shrink-0" />
+                    <span className="flex-1">{label}</span>
+                    {badge && <span className="pill-amber text-[10px] uppercase">{badge}</span>}
+                  </Link>
+                );
+              })}
+            </nav>
+
+            <div className="mt-2 border-t border-black/[0.06] pt-3">
+              <div className="rounded-xl bg-white/70 px-3 py-2.5 ring-1 ring-black/[0.04]">
+                <p className="text-[11px] uppercase tracking-wider text-muted-foreground">Connecté</p>
+                <p className="mt-0.5 truncate text-[13px] font-medium">{adminEmail}</p>
+              </div>
+              <form action={adminSignOut}>
+                <button
+                  type="submit"
+                  className="mt-2 flex w-full items-center gap-2 rounded-xl px-3.5 py-2.5 text-[13px] font-medium text-rose-700 transition-colors hover:bg-rose-50"
+                >
+                  <LogOut className="h-[16px] w-[16px]" />
+                  Déconnexion
+                </button>
+              </form>
+            </div>
+          </aside>
+        </div>
+      )}
+    </>
   );
 }

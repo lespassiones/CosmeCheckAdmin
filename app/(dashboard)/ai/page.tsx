@@ -157,7 +157,11 @@ async function DailyCostChart() {
 }
 
 async function Breakdowns() {
-  const breakdowns = await fetchAiBreakdowns(30);
+  const [breakdowns, real] = await Promise.all([fetchAiBreakdowns(30), fetchRealAiCost()]);
+  // Le coût OpenAI par provider = le RÉEL (API Costs), pas l'estimation ai_logs.
+  const providers = breakdowns.byProvider.map((p) =>
+    p.provider === "openai" && real.hasData ? { ...p, cost_usd: real.last30 } : p,
+  );
   return (
     <>
       <article className="glass-card mb-8 p-5">
@@ -212,12 +216,12 @@ async function Breakdowns() {
       </article>
 
       <div className="mb-8 grid grid-cols-1 gap-3 sm:grid-cols-2 lg:grid-cols-3">
-        {breakdowns.byProvider.length === 0 ? (
+        {providers.length === 0 ? (
           <p className="col-span-full py-4 text-center text-sm text-muted-foreground">
             Aucun provider IA actif sur la période.
           </p>
         ) : (
-          breakdowns.byProvider.map((p) => (
+          providers.map((p) => (
             <article key={p.provider} className="neo-card-sm p-4">
               <div className="flex items-center justify-between gap-2">
                 <span className="pill-rose-tag">{p.provider}</span>
@@ -230,6 +234,7 @@ async function Breakdowns() {
               </p>
               <p className="mt-1 text-[12px] text-muted-foreground tabular-nums">
                 {formatInt(p.tokens_in)} in · {formatInt(p.tokens_out)} out
+                {p.provider === "openai" && real.hasData ? " · coût réel" : ""}
               </p>
             </article>
           ))

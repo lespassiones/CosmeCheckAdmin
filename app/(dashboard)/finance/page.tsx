@@ -40,16 +40,16 @@ export default async function FinancePage() {
       </div>
 
       <SectionHeader
-        title="Dépenses mensuelles"
-        subtitle="12 derniers mois · en euros"
-        info="Empilement par mois : Abonnements (récurrents), IA (OpenAI converti en €), Ponctuel (coûts one-shot du mois, ex frais Google Play)."
+        title="Dépenses"
+        subtitle="Filtre la période · empilement Abonnements / IA / Ponctuel"
+        info="Filtre 1 jour, semaine, mois, 3 mois, 6 mois ou personnalisé. Sous 45 jours = vue quotidienne, au-delà = vue mensuelle. Abonnements récurrents (ventilés), IA (OpenAI converti en €), Ponctuel (coûts one-shot, ex frais Google Play)."
       />
       <article className="neo-card mb-8 p-5">
-        <p className="mb-1 text-[11px] uppercase tracking-wider text-muted-foreground">Total 12 mois</p>
-        <p className="mb-3 text-[20px] font-semibold tabular-nums">
-          {eur(ov.series.reduce((s, m) => s + m.total, 0))}
-        </p>
-        <MonthlyExpenseChart data={ov.series} />
+        <MonthlyExpenseChart
+          aiDaily={ov.aiDailyEUR}
+          expenses={expenses}
+          recurringRunRate={ov.recurringMonthlyRunRate}
+        />
       </article>
 
       <SectionHeader

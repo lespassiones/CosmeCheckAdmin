@@ -24,7 +24,7 @@ export async function logAudit(entry: AuditEntry): Promise<void> {
     const h = await headers();
     const ip = h.get("x-forwarded-for")?.split(",")[0]?.trim() ?? h.get("x-real-ip") ?? null;
     const admin = supabaseAdmin();
-    await admin
+    const { error } = await admin
       .schema("cosme_check")
       .from("admin_audit_log")
       .insert({
@@ -34,7 +34,10 @@ export async function logAudit(entry: AuditEntry): Promise<void> {
         payload: entry.payload ?? null,
         ip,
       });
-  } catch {
-    // Never throw — auditing is best-effort.
+    // Best-effort : ne jamais throw, MAIS ne plus avaler en silence — sinon un
+    // échec (ex. grant de séquence manquant) laisse le journal vide sans trace.
+    if (error) console.error("[audit] insert failed:", error.message, entry.action);
+  } catch (err) {
+    console.error("[audit] logAudit threw:", err);
   }
 }

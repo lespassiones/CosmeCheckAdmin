@@ -31,8 +31,8 @@ function Toggle({
   disabled?: boolean;
 }) {
   return (
-    <label className="flex cursor-pointer items-start justify-between gap-4 rounded-xl border border-black/[0.05] bg-white/60 p-3.5">
-      <span>
+    <label className="flex cursor-pointer items-center justify-between gap-4 rounded-xl border border-black/[0.05] bg-white/60 p-3.5">
+      <span className="min-w-0">
         <span className="block text-[13px] font-medium">{label}</span>
         {hint && <span className="mt-0.5 block text-[11px] text-muted-foreground">{hint}</span>}
       </span>
@@ -42,7 +42,7 @@ function Toggle({
         aria-checked={checked}
         disabled={disabled}
         onClick={() => onChange(!checked)}
-        className={`relative mt-0.5 h-6 w-11 shrink-0 rounded-full transition-colors ${
+        className={`relative h-6 w-11 shrink-0 rounded-full transition-colors ${
           checked ? "bg-emerald-500" : "bg-slate-300"
         } disabled:opacity-50`}
       >

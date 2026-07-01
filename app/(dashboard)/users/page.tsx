@@ -35,13 +35,13 @@ export default async function UsersPage({
         subtitle="Liste de tous les comptes — clique sur un utilisateur pour gérer ses crédits."
         info="Tous les comptes (mobile + web) avec leur tier et leur activité. Clique un utilisateur pour ajuster ses crédits (bonus ponctuel ou override de limite)."
         actions={
-          <form method="GET" className="relative">
+          <form method="GET" className="relative w-full sm:w-auto">
             <Search className="pointer-events-none absolute left-3 top-1/2 h-4 w-4 -translate-y-1/2 text-muted-foreground" />
             <input
               name="q"
               defaultValue={search}
               placeholder="Email ou prénom…"
-              className="w-72 rounded-full border-0 bg-white py-2 pl-9 pr-4 text-sm shadow-[0_4px_14px_-4px_rgba(15,23,42,0.08),inset_0_1px_0_rgba(255,255,255,0.95)] ring-1 ring-black/[0.06] focus:outline-none focus:ring-2 focus:ring-rose-400/40"
+              className="w-full sm:w-72 rounded-full border-0 bg-white py-2 pl-9 pr-4 text-sm shadow-[0_4px_14px_-4px_rgba(15,23,42,0.08),inset_0_1px_0_rgba(255,255,255,0.95)] ring-1 ring-black/[0.06] focus:outline-none focus:ring-2 focus:ring-rose-400/40"
             />
           </form>
         }
