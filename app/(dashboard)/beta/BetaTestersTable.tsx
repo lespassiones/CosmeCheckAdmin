@@ -48,7 +48,7 @@ export function BetaTestersTable({ rows }: { rows: BetaTesterView[] }) {
                 <td className="px-4 py-3">{r.name}</td>
                 <td className="px-4 py-3">{r.email}</td>
                 <td className="px-4 py-3"><StatusBadge status={r.status} invited={r.invited} /></td>
-                <td className="px-4 py-3 text-muted-foreground">{r.source ?? "—"}</td>
+                <td className="px-4 py-3 text-muted-foreground">{r.source ?? "-"}</td>
                 <td className="px-4 py-3 text-muted-foreground">
                   {new Date(r.createdAt).toLocaleDateString("fr-FR")}
                 </td>
@@ -62,7 +62,7 @@ export function BetaTestersTable({ rows }: { rows: BetaTesterView[] }) {
                       {isOpen ? "Masquer" : "Voir les réponses"}
                     </button>
                   ) : (
-                    <span className="text-[12px] text-muted-foreground">—</span>
+                    <span className="text-[12px] text-muted-foreground">-</span>
                   )}
                 </td>
               </tr>

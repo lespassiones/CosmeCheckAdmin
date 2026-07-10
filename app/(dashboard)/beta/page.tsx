@@ -73,7 +73,7 @@ async function getRecent(): Promise<BetaTesterView[]> {
 
     return rows.map((r) => ({
       email: r.email,
-      name: [r.first_name, r.last_name].filter(Boolean).join(" ") || "—",
+      name: [r.first_name, r.last_name].filter(Boolean).join(" ") || "-",
       status: r.status,
       invited: Boolean(r.invited_at),
       source: r.source,
@@ -106,7 +106,7 @@ export default async function BetaPage() {
 
       <BetaLaunchPanel pending={stats.pending} />
 
-      <SectionHeader title="Derniers inscrits" subtitle="25 plus récents — clique « Voir les réponses »." />
+      <SectionHeader title="Derniers inscrits" subtitle="25 plus récents - clique « Voir les réponses »." />
       <div className="neo-card overflow-x-auto">
         <BetaTestersTable rows={recent} />
       </div>
