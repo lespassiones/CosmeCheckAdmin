@@ -1,11 +1,13 @@
 import { PageHeader, SectionHeader } from "@/components/PageHeader";
 import { supabaseAdmin } from "@/lib/supabase";
 import { BetaLaunchPanel } from "./BetaLaunchPanel";
+import { BetaTestersTable, type BetaTesterView, type AnswerItem } from "./BetaTestersTable";
 
 export const metadata = { title: "Bêta test" };
 export const dynamic = "force-dynamic";
 
-type BetaRow = {
+type TesterRow = {
+  id: string;
   email: string;
   first_name: string | null;
   last_name: string | null;
@@ -13,7 +15,19 @@ type BetaRow = {
   status: string;
   source: string | null;
   created_at: string;
+  intake: unknown;
 };
+
+/** Transforme un objet jsonb { i3: {q,a}, i1: {q,a} } en liste ordonnée par
+ *  numéro de clé, en ne gardant que les réponses non vides. */
+function toAnswerList(obj: unknown): AnswerItem[] {
+  if (!obj || typeof obj !== "object") return [];
+  const num = (k: string) => Number((k.match(/\d+/) ?? ["0"])[0]);
+  return Object.entries(obj as Record<string, { q?: unknown; a?: unknown }>)
+    .sort((a, b) => num(a[0]) - num(b[0]))
+    .map(([, v]) => ({ q: String(v?.q ?? ""), a: String(v?.a ?? "") }))
+    .filter((x) => x.a.trim().length > 0);
+}
 
 async function getStats(): Promise<{ total: number; pending: number; invited: number; feedback: number }> {
   try {
@@ -32,16 +46,41 @@ async function getStats(): Promise<{ total: number; pending: number; invited: nu
   }
 }
 
-async function getRecent(): Promise<BetaRow[]> {
+async function getRecent(): Promise<BetaTesterView[]> {
   try {
     const sb = supabaseAdmin();
-    const { data } = await sb
+    const { data: testers } = await sb
       .schema("cosme_check")
       .from("beta_testers")
-      .select("email, first_name, last_name, invited_at, status, source, created_at")
+      .select("id, email, first_name, last_name, invited_at, status, source, created_at, intake")
       .order("created_at", { ascending: false })
       .limit(25);
-    return (data as BetaRow[] | null) ?? [];
+
+    const rows = (testers as TesterRow[] | null) ?? [];
+    const ids = rows.map((r) => r.id);
+
+    const feedbackByTester = new Map<string, unknown>();
+    if (ids.length > 0) {
+      const { data: fbs } = await sb
+        .schema("cosme_check")
+        .from("beta_feedback")
+        .select("beta_tester_id, answers")
+        .in("beta_tester_id", ids);
+      for (const f of (fbs as { beta_tester_id: string; answers: unknown }[] | null) ?? []) {
+        feedbackByTester.set(f.beta_tester_id, f.answers);
+      }
+    }
+
+    return rows.map((r) => ({
+      email: r.email,
+      name: [r.first_name, r.last_name].filter(Boolean).join(" ") || "—",
+      status: r.status,
+      invited: Boolean(r.invited_at),
+      source: r.source,
+      createdAt: r.created_at,
+      intake: toAnswerList(r.intake),
+      feedback: toAnswerList(feedbackByTester.get(r.id)),
+    }));
   } catch {
     return [];
   }
@@ -55,7 +94,7 @@ export default async function BetaPage() {
       <PageHeader
         title="Bêta test"
         subtitle="Inscrits au programme bêta, lancement des invitations et suivi des retours."
-        info="La page publique /beta collecte les emails (avec consentement). Ici tu déclenches l'envoi des invitations : chaque inscrit non encore invité reçoit son accès + le lien du formulaire de retour. Plusieurs vagues possibles."
+        info="La page publique /beta collecte les inscriptions (questionnaire persona + consentement). Ici tu déclenches l'envoi des invitations et tu consultes, par personne, les réponses au questionnaire et au retour."
       />
 
       <div className="mb-8 grid grid-cols-2 gap-3 sm:grid-cols-4">
@@ -67,36 +106,9 @@ export default async function BetaPage() {
 
       <BetaLaunchPanel pending={stats.pending} />
 
-      <SectionHeader title="Derniers inscrits" subtitle="25 plus récents." />
+      <SectionHeader title="Derniers inscrits" subtitle="25 plus récents — clique « Voir les réponses »." />
       <div className="neo-card overflow-x-auto">
-        {recent.length === 0 ? (
-          <p className="p-5 text-[13px] text-muted-foreground">Aucun inscrit pour le moment.</p>
-        ) : (
-          <table className="w-full text-[13px]">
-            <thead>
-              <tr className="border-b border-black/[0.06] text-left text-[11px] uppercase tracking-wider text-muted-foreground">
-                <th className="px-4 py-3 font-medium">Nom</th>
-                <th className="px-4 py-3 font-medium">Email</th>
-                <th className="px-4 py-3 font-medium">Statut</th>
-                <th className="px-4 py-3 font-medium">Source</th>
-                <th className="px-4 py-3 font-medium">Inscrit le</th>
-              </tr>
-            </thead>
-            <tbody>
-              {recent.map((r) => (
-                <tr key={r.email} className="border-b border-black/[0.04] last:border-0">
-                  <td className="px-4 py-3">{[r.first_name, r.last_name].filter(Boolean).join(" ") || "—"}</td>
-                  <td className="px-4 py-3">{r.email}</td>
-                  <td className="px-4 py-3"><StatusBadge status={r.status} invited={Boolean(r.invited_at)} /></td>
-                  <td className="px-4 py-3 text-muted-foreground">{r.source ?? "—"}</td>
-                  <td className="px-4 py-3 text-muted-foreground">
-                    {new Date(r.created_at).toLocaleDateString("fr-FR")}
-                  </td>
-                </tr>
-              ))}
-            </tbody>
-          </table>
-        )}
+        <BetaTestersTable rows={recent} />
       </div>
     </>
   );
@@ -109,14 +121,4 @@ function Stat({ label, value, accent }: { label: string; value: number; accent?:
       <p className="mt-1 text-[28px] font-bold tabular-nums leading-none">{value}</p>
     </article>
   );
-}
-
-function StatusBadge({ status, invited }: { status: string; invited: boolean }) {
-  if (status === "feedback_recu") {
-    return <span className="rounded-full bg-emerald-50 px-2.5 py-1 text-[11px] font-medium text-emerald-700">Retour reçu</span>;
-  }
-  if (invited) {
-    return <span className="rounded-full bg-sky-50 px-2.5 py-1 text-[11px] font-medium text-sky-700">Invité</span>;
-  }
-  return <span className="rounded-full bg-amber-50 px-2.5 py-1 text-[11px] font-medium text-amber-700">En attente</span>;
 }
