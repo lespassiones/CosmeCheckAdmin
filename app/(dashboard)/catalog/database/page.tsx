@@ -18,12 +18,9 @@ export const dynamic = "force-dynamic";
 
 type SP = Promise<Record<string, string | undefined>>;
 
-/** Plafond couleur (identique à l'app) : ≥1 rouge ou ≥3 orange → ≤8.9 ; ≥1 orange → ≤12.9. */
-function capScore(score: number | null, orange: number | null, rouge: number | null): number | null {
-  if (score === null) return null;
-  const o = orange ?? 0, r = rouge ?? 0;
-  if (r >= 1 || o >= 3) return Math.min(score, 8.9);
-  if (o >= 1) return Math.min(score, 12.9);
+/** NEUTRALISÉ (parité app) : catalog.score est déjà notre score PASTILLE (plafond
+ *  par position intégré). Plus de re-plafonnement (évite le double-cap). */
+function capScore(score: number | null, _orange: number | null, _rouge: number | null): number | null {
   return score;
 }
 
@@ -78,7 +75,7 @@ async function CatalogStatsBar() {
       <Stat label="Sans score" value={stats.without_score} tone="text-rose-600" href="/catalog/database?score=without" />
       <Stat label="Sans INCI" value={stats.without_inci} tone="text-rose-600" href="/catalog/database?inci=without" />
       <Stat label="Pénalisants" value={stats.penalizing} tone="text-orange-600" href="/catalog/database?penalizing=with" />
-      <Stat label="Score INCI Beauty" value={stats.source_incibeauty} href="/catalog/database?source=incibeauty" />
+      <Stat label="Sourcé catalogue" value={stats.source_incibeauty} href="/catalog/database?source=incibeauty" />
       <Stat label="Web / notre analyse" value={stats.source_web} href="/catalog/database?source=web" />
       <Stat label="Actifs" value={stats.active} href="/catalog/database?active=active" />
       <Stat label="Inactifs" value={stats.inactive} tone="text-rose-600" href="/catalog/database?active=inactive" />
@@ -176,7 +173,7 @@ export default async function CatalogDatabasePage({ searchParams }: { searchPara
                   <td className="px-3 py-2.5">
                     <span className={cn("rounded-full px-2 py-0.5 text-[10px] font-medium",
                       p.source_url ? "bg-violet-50 text-violet-700" : "bg-slate-100 text-slate-600")}>
-                      {p.source_url ? "Web" : "INCI Beauty"}
+                      {p.source_url ? "Web" : "Catalogue"}
                     </span>
                   </td>
                   <td className="px-3 py-2.5 text-right">

@@ -24,7 +24,7 @@ const SELECTS: SelectDef[] = [
   ] },
   { key: "source", label: "Source", options: [
     { value: "", label: "Source : toutes" },
-    { value: "incibeauty", label: "Score INCI Beauty" },
+    { value: "incibeauty", label: "Sourcé catalogue" },
     { value: "web", label: "Web / notre analyse" },
   ] },
   { key: "penalizing", label: "Pénalisants", options: [

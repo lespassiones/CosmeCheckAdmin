@@ -58,7 +58,7 @@ export default async function CatalogProductDetail({
               Score catalogue : <b>{p.score === null ? "—" : p.score.toFixed(1)}</b>{p.score_label ? ` · ${p.score_label}` : ""}
             </span>
             <span className={cn("rounded-full px-2 py-0.5 font-medium", p.source_url ? "bg-violet-50 text-violet-700" : "bg-slate-100 text-slate-600")}>
-              {p.source_url ? "Web / notre analyse" : "Score INCI Beauty"}
+              {p.source_url ? "Web / notre analyse" : "Sourcé catalogue"}
             </span>
             {p.has_penalizing && <span className="rounded-full bg-orange-50 px-2 py-0.5 font-medium text-orange-700">Ingrédients pénalisants</span>}
             {!p.is_active && <span className="rounded-full bg-rose-50 px-2 py-0.5 font-medium text-rose-700">Inactif</span>}

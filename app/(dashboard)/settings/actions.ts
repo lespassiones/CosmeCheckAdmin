@@ -15,6 +15,16 @@ export type AppConfigPatch = {
   flag_suggestions?: boolean;
   flag_advisor?: boolean;
   flag_public_share?: boolean;
+  // Flags rétention (juil 2026)
+  flag_routine_reorganize?: boolean;
+  flag_conflicts?: boolean;
+  flag_skin_score?: boolean;
+  flag_weekly_picks?: boolean;
+  // Notifications
+  notif_reminders_enabled?: boolean;
+  notif_bilan_weekday?: number;
+  notif_bilan_hour?: number;
+  notif_conflict_alerts?: boolean;
   ai_cost_alert_daily_usd?: string;
   ai_cost_alert_monthly_usd?: string;
   maintenance_mode?: boolean;
