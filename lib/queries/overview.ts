@@ -169,9 +169,12 @@ export async function fetchDailySeries(days = 30): Promise<DailySeriesPoint[]> {
   since.setUTCHours(0, 0, 0, 0);
   since.setUTCDate(since.getUTCDate() - (days - 1));
 
-  // Pull everything once, then bucket client-side. The volumes involved here
-  // (a few thousand rows max) make this perfectly fine without an MV.
-  const [analysesRes, logsRes, usersRes] = await Promise.all([
+  // Pull everything once, then bucket client-side. Le COÛT vient de
+  // openai_cost_daily (montants RÉELS factures OpenAI, synchronisés par la
+  // page Coûts IA) et non plus d'une estimation ai_logs : cette derniere etait
+  // en plus silencieusement TRONQUEE a 1000 lignes par PostgREST (le cumule 30 j
+  // affichait ~$2 au lieu de ~$7 reels).
+  const [analysesRes, costRes, usersRes] = await Promise.all([
     sb
       .schema("cosme_check")
       .from("analyses")
@@ -179,9 +182,9 @@ export async function fetchDailySeries(days = 30): Promise<DailySeriesPoint[]> {
       .gte("created_at", since.toISOString()),
     sb
       .schema("cosme_check")
-      .from("ai_logs")
-      .select("created_at, model, provider, tokens_in, tokens_out")
-      .gte("created_at", since.toISOString()),
+      .from("openai_cost_daily")
+      .select("day, amount_usd")
+      .gte("day", since.toISOString().slice(0, 10)),
     sb.auth.admin.listUsers({ page: 1, perPage: 1000 }),
   ]);
 
@@ -197,16 +200,9 @@ export async function fetchDailySeries(days = 30): Promise<DailySeriesPoint[]> {
     const b = buckets.get(key);
     if (b) b.analyses += 1;
   }
-  for (const l of (logsRes.data ?? []) as {
-    created_at: string;
-    model: string | null;
-    provider: string | null;
-    tokens_in: number | null;
-    tokens_out: number | null;
-  }[]) {
-    const key = l.created_at.slice(0, 10);
-    const b = buckets.get(key);
-    if (b) b.cost_usd += rowCost(l);
+  for (const c of (costRes.data ?? []) as { day: string; amount_usd: number | string | null }[]) {
+    const b = buckets.get(String(c.day).slice(0, 10));
+    if (b) b.cost_usd += Number(c.amount_usd ?? 0);
   }
   if (!usersRes.error && usersRes.data) {
     for (const u of usersRes.data.users) {

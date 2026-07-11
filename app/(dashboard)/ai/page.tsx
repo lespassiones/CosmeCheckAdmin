@@ -97,12 +97,16 @@ export default async function AiPage() {
 async function AiKpis() {
   const [real, kpis] = await Promise.all([fetchRealAiCost(), fetchAiKpis()]);
   const costHint = real.hasData ? "réel · OpenAI" : "clé admin OpenAI manquante";
+  // L'API Costs d'OpenAI reporte avec ~1 jour de retard : « aujourd'hui » réel
+  // vaut presque toujours 0 en journée. On affiche alors l'ESTIMATION ai_logs
+  // (tokens × tarif), clairement étiquetée, plutôt qu'un faux $0.000.
+  const todayIsReal = real.hasData && real.today > 0;
   return (
     <div className="mb-8 grid grid-cols-2 gap-3 sm:grid-cols-2 lg:grid-cols-4">
       <StatCard
         label="Coût aujourd'hui"
-        value={formatUSD(real.today, 3)}
-        hint={costHint}
+        value={formatUSD(todayIsReal ? real.today : kpis.costTodayUSD, 3)}
+        hint={todayIsReal ? costHint : "estimé · le réel OpenAI arrive sous ~24 h"}
         icon={Coins}
         tone="rose"
       />
@@ -123,7 +127,7 @@ async function AiKpis() {
       <StatCard
         label="Cache hit rate"
         value={formatPercent(kpis.cacheHitRate)}
-        hint="hits / (hits + calls)"
+        hint="hits / (hits + appels) · cache serveur ai_cache"
         icon={Sparkles}
         tone="emerald"
       />

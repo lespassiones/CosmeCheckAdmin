@@ -91,7 +91,7 @@ async function OverviewKpis() {
       <StatCard
         label="Coût IA aujourd'hui"
         value={formatUSD(ai.estimatedCostUSD, 3)}
-        hint={`${formatInt(ai.totalCallsToday)} calls · ${formatInt(ai.totalTokensIn + ai.totalTokensOut)} tokens`}
+        hint={`estimé · ${formatInt(ai.totalCallsToday)} calls · ${formatInt(ai.totalTokensIn + ai.totalTokensOut)} tokens`}
         icon={TrendingUp}
         tone="rose"
       />

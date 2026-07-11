@@ -1,76 +1,129 @@
-import { CreditCard, TrendingUp, Users, AlertTriangle, ArrowUpRight } from "lucide-react";
+import { CreditCard, Users, Hourglass, Store } from "lucide-react";
 import { PageHeader, SectionHeader } from "@/components/PageHeader";
 import { StatCard } from "@/components/StatCard";
-import { supabaseAdmin } from "@/lib/supabase";
-import { formatEUR, formatInt } from "@/lib/utils";
-import RevenuecatStatsClient from "./RevenuecatStatsClient";
+import { fetchBillingOverview } from "@/lib/queries/billing";
 
 export const metadata = { title: "Abonnements" };
 export const dynamic = "force-dynamic";
 
-async function getBillingKpis() {
-  const sb = supabaseAdmin();
-  const { count: premiumCount } = await sb
-    .schema("cosme_check")
-    .from("user_profiles")
-    .select("id", { count: "exact", head: true })
-    .eq("tier", "premium");
-  return {
-    premiumUsers: premiumCount ?? 0,
-  };
+function fmtDate(iso: string | null): string {
+  if (!iso) return "—";
+  try {
+    return new Date(iso).toLocaleString("fr-FR", { dateStyle: "medium", timeStyle: "short" });
+  } catch {
+    return "—";
+  }
 }
 
+const STORE_LABEL: Record<string, string> = {
+  play_store: "Google Play",
+  app_store: "App Store",
+  stripe: "Stripe",
+  promotional: "Promo",
+};
+
 export default async function BillingPage() {
-  const kpis = await getBillingKpis();
+  const ov = await fetchBillingOverview();
 
   return (
     <>
       <PageHeader
         title="Abonnements"
-        subtitle="Suivi des conversions Premium et du chiffre d'affaires récurrent."
-        info="Suivi des abonnements Premium et du revenu récurrent (MRR). RevenueCat pas encore branché : les valeurs se rempliront à l'activation des achats."
+        subtitle="Abonnés premium réels : liste depuis la base (webhook RevenueCat), détail plan/essai depuis RevenueCat."
+        info="La liste vient de user_profiles (tier premium), tenue à jour en temps réel par le webhook RevenueCat (achat, renouvellement, annulation). Le détail (mensuel/annuel, essai en cours, échéance, store) est lu en direct chez RevenueCat pour chaque abonné. « Essai » = période d'essai 3 jours en cours : la conversion en paiement se fait à l'échéance si l'utilisateur n'annule pas."
       />
 
-      {/* RevenueCat Stats Section */}
-      <RevenuecatStatsClient />
+      <div className="mb-8 grid grid-cols-2 gap-3 lg:grid-cols-4">
+        <StatCard label="Abonnés premium" value={ov.premiumCount} hint="tier premium en base" icon={Users} tone="rose" />
+        <StatCard label="En essai" value={ov.trialCount} hint="essai 3 jours en cours" icon={Hourglass} tone="amber" />
+        <StatCard
+          label="Payants"
+          value={ov.premiumCount - ov.trialCount}
+          hint="hors periode d'essai"
+          icon={CreditCard}
+          tone="emerald"
+        />
+        <StatCard
+          label="Canal"
+          value={ov.rcConfigured ? "RevenueCat" : "Base seule"}
+          hint={ov.rcConfigured ? "détail lu en direct" : "clé RC absente (détail masqué)"}
+          icon={Store}
+          tone="violet"
+        />
+      </div>
 
-      {/* Stripe Section (Future) */}
-      <SectionHeader title="Stripe (Paiements)" />
-
-      {/* Setup hint */}
-      <article className="glass-card-rose p-6 mb-8">
-        <div className="flex items-start gap-4">
-          <span
-            aria-hidden
-            className="grid h-12 w-12 shrink-0 place-items-center rounded-2xl bg-white/80 text-rose-600 ring-1 ring-rose-200/60"
-          >
-            <CreditCard className="h-5 w-5" />
-          </span>
-          <div>
-            <h3 className="text-[16px] font-semibold tracking-tight">
-              Stripe pas encore connecté
-            </h3>
-            <p className="mt-1 text-[13px] text-muted-foreground">
-              Cet onglet activera le suivi MRR, churn, échecs de paiement et
-              cohortes une fois ton compte Stripe lié. Pour l'instant, seuls les
-              comptes avec <code className="rounded bg-white/80 px-1.5 py-0.5 font-mono text-[12px]">tier='premium'</code> sont
-              comptés dans la carte ci-dessus.
-            </p>
-            <ul className="mt-3 list-disc space-y-1 pl-5 text-[12px] text-muted-foreground">
-              <li>Ajouter <code className="font-mono">STRIPE_SECRET_KEY</code> et <code className="font-mono">STRIPE_WEBHOOK_SECRET</code> dans le <code className="font-mono">.env</code></li>
-              <li>Créer la table <code className="font-mono">cosme_check.subscriptions</code> qui mirror Stripe</li>
-              <li>Brancher le webhook sur <code className="font-mono">/api/stripe/webhook</code></li>
-            </ul>
-          </div>
+      <SectionHeader
+        title="Abonnés"
+        info="Un abonné par ligne. Plan = mensuel ou annuel. Statut = essai (3 j gratuits en cours) ou actif (payant). Échéance = prochaine facturation ou fin d'essai. Sandbox = achat de test (ne compte pas comme revenu)."
+      />
+      <article className="neo-card overflow-hidden">
+        <div className="overflow-x-auto scrollbar-thin">
+          <table className="w-full text-[13px]">
+            <thead className="bg-muted/60 text-[11px] uppercase tracking-wider text-muted-foreground">
+              <tr>
+                <th className="px-4 py-2.5 text-left font-medium">Utilisateur</th>
+                <th className="px-4 py-2.5 text-left font-medium">Plan</th>
+                <th className="px-4 py-2.5 text-left font-medium">Statut</th>
+                <th className="px-4 py-2.5 text-left font-medium">Échéance</th>
+                <th className="px-4 py-2.5 text-left font-medium">Store</th>
+              </tr>
+            </thead>
+            <tbody className="divide-y divide-black/[0.04]">
+              {ov.subscribers.length === 0 ? (
+                <tr>
+                  <td colSpan={5} className="px-4 py-8 text-center text-muted-foreground">
+                    Aucun abonné premium pour le moment.
+                  </td>
+                </tr>
+              ) : (
+                ov.subscribers.map((s) => (
+                  <tr key={s.userId} className="hover:bg-muted/40">
+                    <td className="px-4 py-2.5">
+                      <p className="font-medium text-foreground">{s.email ?? s.userId}</p>
+                      {s.firstName ? (
+                        <p className="text-[12px] text-muted-foreground">{s.firstName}</p>
+                      ) : null}
+                    </td>
+                    <td className="px-4 py-2.5">
+                      {s.rc?.plan ? (
+                        <span className="pill">{s.rc.plan}</span>
+                      ) : (
+                        <span className="text-muted-foreground">—</span>
+                      )}
+                    </td>
+                    <td className="px-4 py-2.5">
+                      {s.rc ? (
+                        <span className={s.rc.isTrial ? "pill-amber" : "pill-emerald"}>
+                          {s.rc.isTrial ? "essai" : "actif"}
+                        </span>
+                      ) : (
+                        <span className="text-muted-foreground">—</span>
+                      )}
+                      {s.rc?.isSandbox ? (
+                        <span className="pill ml-1 text-[10px] uppercase">sandbox</span>
+                      ) : null}
+                    </td>
+                    <td className="px-4 py-2.5 text-muted-foreground">{fmtDate(s.rc?.expiresAt ?? null)}</td>
+                    <td className="px-4 py-2.5 text-muted-foreground">
+                      {s.rc?.store ? STORE_LABEL[s.rc.store] ?? s.rc.store : "—"}
+                    </td>
+                  </tr>
+                ))
+              )}
+            </tbody>
+          </table>
         </div>
       </article>
 
-      <SectionHeader title="Cohortes premium" />
-      <article className="neo-card flex items-center justify-center p-12">
-        <p className="text-sm text-muted-foreground">
-          Tableau cohortes disponible quand Stripe sera connecté.
-        </p>
-      </article>
+      <div className="mt-8">
+        <SectionHeader
+          title="Stripe (web)"
+          info="Les abonnements pris sur le SITE passent par Stripe ; ceux pris dans l'APP passent par Google Play (RevenueCat). Le suivi Stripe détaillé (MRR, churn, échecs de paiement) sera ajouté quand des ventes web existeront."
+        />
+        <article className="neo-card p-5 text-[13px] text-muted-foreground">
+          Aucune vente Stripe pour le moment. Les abonnements actuels viennent du Play Store (tableau ci-dessus).
+        </article>
+      </div>
     </>
   );
 }

@@ -53,15 +53,11 @@ export default async function FinancePage() {
       </article>
 
       <SectionHeader
-        title="Ajouter une dépense"
-        info="Saisis un abonnement ou un coût. USD converti automatiquement en €. « Provision » = argent chargé d'avance (ex crédit OpenAI). « Ponctuel » = coût one-shot (ex 25€ Google Play)."
+        title="Dépenses enregistrées"
+        subtitle="Le bouton à droite ouvre la saisie (USD converti automatiquement en €)"
+        info="Toutes tes dépenses saisies. L'œil désactive une ligne (sans supprimer) ; la corbeille supprime définitivement. « Provision » = argent chargé d'avance (ex crédit OpenAI) ; « Ponctuel » = coût one-shot (ex 25€ Google Play)."
       />
       <AddExpenseForm />
-
-      <SectionHeader
-        title="Dépenses enregistrées"
-        info="Toutes tes dépenses saisies. L'œil désactive une ligne (sans supprimer) ; la corbeille supprime définitivement."
-      />
       <ExpenseList expenses={expenses} />
     </>
   );

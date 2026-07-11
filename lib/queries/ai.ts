@@ -67,6 +67,27 @@ function percentile(sorted: number[], p: number): number {
   return sorted[idx];
 }
 
+/**
+ * PIÈGE PostgREST : toute lecture est plafonnée à 1000 lignes par page.
+ * `ai_logs` et `ai_cache` dépassent ce seuil → sans pagination, les sommes
+ * (hits, coûts estimés, breakdowns) étaient calculées sur un SOUS-ENSEMBLE
+ * silencieusement tronqué (ex. hit rate affiché 0,5 % au lieu de ~5 %).
+ * Ce helper boucle par pages de 1000 jusqu'à épuisement (garde-fou 50 pages).
+ */
+async function fetchAllRows<T>(
+  build: (from: number, to: number) => PromiseLike<{ data: unknown }>,
+): Promise<T[]> {
+  const PAGE = 1000;
+  const out: T[] = [];
+  for (let i = 0; i < 50; i++) {
+    const { data } = await build(i * PAGE, i * PAGE + PAGE - 1);
+    const rows = (data ?? []) as T[];
+    out.push(...rows);
+    if (rows.length < PAGE) break;
+  }
+  return out;
+}
+
 /* ────────────────────────────────────────────────────────────────────────────
    1. KPIs : cost today / 7d / 30d + cache hit rate
    ──────────────────────────────────────────────────────────────────────────── */
@@ -86,31 +107,30 @@ export async function fetchAiKpis(): Promise<AiKpis> {
   const start7d = new Date(startOfToday.getTime() - 6 * 86_400_000);
   const start30d = new Date(startOfToday.getTime() - 29 * 86_400_000);
 
-  const [todayRes, sevenRes, thirtyRes, cacheHitsRes, totalCallsRes] = await Promise.all([
-    sb
-      .schema("cosme_check")
-      .from("ai_logs")
-      .select("model, provider, tokens_in, tokens_out")
-      .gte("created_at", startOfToday.toISOString()),
-    sb
-      .schema("cosme_check")
-      .from("ai_logs")
-      .select("model, provider, tokens_in, tokens_out")
-      .gte("created_at", start7d.toISOString()),
-    sb
-      .schema("cosme_check")
-      .from("ai_logs")
-      .select("model, provider, tokens_in, tokens_out")
-      .gte("created_at", start30d.toISOString()),
-    sb.schema("cosme_check").from("ai_cache").select("hits"),
+  // Une seule lecture PAGINÉE des 30 derniers jours (couvre aussi today/7j) +
+  // les compteurs de hits du cache serveur. Voir fetchAllRows (piège 1000 lignes).
+  type LogRow = CostRow & { created_at: string };
+  const [logs30, cacheHits, totalCallsRes] = await Promise.all([
+    fetchAllRows<LogRow>((from, to) =>
+      sb
+        .schema("cosme_check")
+        .from("ai_logs")
+        .select("created_at, model, provider, tokens_in, tokens_out")
+        .gte("created_at", start30d.toISOString())
+        .order("created_at", { ascending: true })
+        .range(from, to),
+    ),
+    fetchAllRows<{ hits: number | null }>((from, to) =>
+      sb.schema("cosme_check").from("ai_cache").select("hits").order("key").range(from, to),
+    ),
     sb.schema("cosme_check").from("ai_logs").select("id", { count: "exact", head: true }),
   ]);
 
-  const sumCost = (rows: CostRow[] | null): number =>
-    (rows ?? []).reduce((s, r) => s + rowCost(r), 0);
+  const sumCost = (rows: LogRow[]): number => rows.reduce((s, r) => s + rowCost(r), 0);
+  const todayIso = startOfToday.toISOString();
+  const sevenIso = start7d.toISOString();
 
-  const totalHits = ((cacheHitsRes.data ?? []) as { hits: number | null }[])
-    .reduce((s, r) => s + (r.hits ?? 0), 0);
+  const totalHits = cacheHits.reduce((s, r) => s + (r.hits ?? 0), 0);
   const totalCalls = totalCallsRes.count ?? 0;
   // Hit rate = hits / (hits + calls). Avoids producing > 100% if cache served
   // more than the logged calls, and gracefully handles the empty case.
@@ -118,9 +138,9 @@ export async function fetchAiKpis(): Promise<AiKpis> {
   const cacheHitRate = denom === 0 ? 0 : totalHits / denom;
 
   return {
-    costTodayUSD: sumCost(todayRes.data as CostRow[] | null),
-    cost7dUSD: sumCost(sevenRes.data as CostRow[] | null),
-    cost30dUSD: sumCost(thirtyRes.data as CostRow[] | null),
+    costTodayUSD: sumCost(logs30.filter((r) => r.created_at >= todayIso)),
+    cost7dUSD: sumCost(logs30.filter((r) => r.created_at >= sevenIso)),
+    cost30dUSD: sumCost(logs30),
     cacheHitRate,
   };
 }
@@ -135,11 +155,15 @@ export async function fetchAiDailyCostSeries(days = 30): Promise<DailySeriesPoin
   since.setUTCHours(0, 0, 0, 0);
   since.setUTCDate(since.getUTCDate() - (days - 1));
 
-  const { data } = await sb
-    .schema("cosme_check")
-    .from("ai_logs")
-    .select("created_at, model, provider, tokens_in, tokens_out")
-    .gte("created_at", since.toISOString());
+  const data = await fetchAllRows<CostRow & { created_at: string }>((from, to) =>
+    sb
+      .schema("cosme_check")
+      .from("ai_logs")
+      .select("created_at, model, provider, tokens_in, tokens_out")
+      .gte("created_at", since.toISOString())
+      .order("created_at", { ascending: true })
+      .range(from, to),
+  );
 
   const buckets = new Map<string, DailySeriesPoint>();
   for (let i = 0; i < days; i++) {
@@ -148,7 +172,7 @@ export async function fetchAiDailyCostSeries(days = 30): Promise<DailySeriesPoin
     buckets.set(key, { day: key, analyses: 0, signups: 0, cost_usd: 0 });
   }
 
-  for (const l of (data ?? []) as (CostRow & { created_at: string })[]) {
+  for (const l of data) {
     const key = l.created_at.slice(0, 10);
     const b = buckets.get(key);
     if (b) b.cost_usd += rowCost(l);
@@ -195,20 +219,22 @@ export async function fetchAiBreakdowns(days = 30): Promise<AiBreakdowns> {
   since.setUTCHours(0, 0, 0, 0);
   since.setUTCDate(since.getUTCDate() - (days - 1));
 
-  const { data } = await sb
-    .schema("cosme_check")
-    .from("ai_logs")
-    .select("feature, provider, model, tokens_in, tokens_out, duration_ms")
-    .gte("created_at", since.toISOString());
-
-  const rows = (data ?? []) as {
+  const rows = await fetchAllRows<{
     feature: string | null;
     provider: string | null;
     model: string | null;
     tokens_in: number | null;
     tokens_out: number | null;
     duration_ms: number | null;
-  }[];
+  }>((from, to) =>
+    sb
+      .schema("cosme_check")
+      .from("ai_logs")
+      .select("feature, provider, model, tokens_in, tokens_out, duration_ms, created_at")
+      .gte("created_at", since.toISOString())
+      .order("created_at", { ascending: true })
+      .range(from, to),
+  );
 
   type FeatureAgg = {
     calls: number;

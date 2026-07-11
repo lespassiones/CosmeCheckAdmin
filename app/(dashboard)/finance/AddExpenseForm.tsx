@@ -1,7 +1,7 @@
 "use client";
 
 import { useState, useTransition } from "react";
-import { Plus } from "lucide-react";
+import { Plus, X } from "lucide-react";
 import { toast } from "sonner";
 import { addExpense, type AddExpenseInput } from "./actions";
 
@@ -19,6 +19,7 @@ const input =
 const lbl = "mb-1 block text-[11px] font-medium uppercase tracking-wider text-muted-foreground";
 
 export function AddExpenseForm() {
+  const [open, setOpen] = useState(false);
   const [pending, start] = useTransition();
   const [form, setForm] = useState<AddExpenseInput>({
     label: "",
@@ -37,14 +38,39 @@ export function AddExpenseForm() {
       if (r.ok) {
         toast.success("Dépense ajoutée.");
         setForm((f) => ({ ...f, label: "", amount: 0, note: "" }));
+        setOpen(false);
       } else {
         toast.error(r.error);
       }
     });
   }
 
+  // Bouton déclencheur : le formulaire complet vit dans une MODAL (demande
+  // produit : plus de bloc étiré en pleine page).
+  if (!open) {
+    return (
+      <div className="mb-8 flex justify-end">
+        <button
+          type="button"
+          onClick={() => setOpen(true)}
+          className="inline-flex items-center gap-1.5 rounded-full bg-rose-600 px-4 py-2 text-[13px] font-semibold text-white transition hover:bg-rose-700"
+        >
+          <Plus className="h-4 w-4" />
+          Ajouter une dépense
+        </button>
+      </div>
+    );
+  }
+
   return (
-    <article className="neo-card mb-8 p-5">
+    <div className="fixed inset-0 z-50 flex items-center justify-center p-4">
+      {/* Backdrop */}
+      <div
+        className="absolute inset-0 bg-black/40 backdrop-blur-sm"
+        onClick={() => setOpen(false)}
+        aria-hidden
+      />
+      <ModalCard onClose={() => setOpen(false)}>
       <div className="grid grid-cols-1 gap-3 sm:grid-cols-2 lg:grid-cols-4">
         <div className="sm:col-span-2">
           <label className={lbl}>Libellé</label>
@@ -124,7 +150,14 @@ export function AddExpenseForm() {
           />
         </div>
       </div>
-      <div className="mt-4 flex justify-end">
+      <div className="mt-4 flex justify-end gap-2">
+        <button
+          type="button"
+          onClick={() => setOpen(false)}
+          className="rounded-full border border-black/10 bg-white px-4 py-2 text-[13px] font-semibold text-foreground transition hover:bg-black/5"
+        >
+          Annuler
+        </button>
         <button
           type="button"
           disabled={pending}
@@ -135,6 +168,27 @@ export function AddExpenseForm() {
           {pending ? "Ajout…" : "Ajouter la dépense"}
         </button>
       </div>
+      </ModalCard>
+    </div>
+  );
+}
+
+/** Carte de la modal : titre + croix + contenu (le formulaire). */
+function ModalCard({ children, onClose }: { children: React.ReactNode; onClose: () => void }) {
+  return (
+    <article className="relative z-10 max-h-[90vh] w-full max-w-2xl overflow-y-auto rounded-2xl bg-white p-5 shadow-2xl ring-1 ring-black/[0.06]">
+      <div className="mb-4 flex items-center justify-between">
+        <h3 className="text-[15px] font-semibold tracking-tight">Ajouter une dépense</h3>
+        <button
+          type="button"
+          onClick={onClose}
+          aria-label="Fermer"
+          className="grid h-8 w-8 place-items-center rounded-lg transition hover:bg-black/5"
+        >
+          <X className="h-4 w-4" />
+        </button>
+      </div>
+      {children}
     </article>
   );
 }

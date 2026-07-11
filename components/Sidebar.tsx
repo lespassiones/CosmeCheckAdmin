@@ -45,7 +45,7 @@ const NAV: NavItem[] = [
   { href: "/catalog/web-products", label: "Produits web", icon: Globe },
   { href: "/settings/credits", label: "Gestion des crédits", icon: Coins },
   { href: "/settings", label: "Paramètres", icon: SlidersHorizontal },
-  { href: "/billing", label: "Abonnements", icon: CreditCard, badge: "Soon" },
+  { href: "/billing", label: "Abonnements", icon: CreditCard },
   { href: "/finance", label: "Finance", icon: Wallet },
   // Système + Sécurité fusionnés (sous-onglets), tout en bas.
   { href: "/system", label: "Système", icon: Cog },

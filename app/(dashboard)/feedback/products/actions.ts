@@ -54,23 +54,31 @@ export async function approvePhotoSubmission(formData: FormData): Promise<Action
   const imageUrl = sb.storage.from(BUCKET).getPublicUrl(chosenPath).data.publicUrl;
 
   if (submission.ean) {
-    // Produit catalogue : met à jour l'image. Upsert pour couvrir le cas (rare)
-    // où la ligne n'existerait pas encore.
-    const { error: upErr } = await sb
+    // Produit catalogue : on ne touche QUE l'image. (L'ancien upsert réécrivait
+    // aussi brand/name/category avec les valeurs TAPÉES PAR L'UTILISATEUR, ce
+    // qui pouvait écraser des données catalogue correctes.)
+    const { data: updated, error: upErr } = await sb
       .schema("cosme_check")
       .from("catalog")
-      .upsert(
-        {
+      .update({ image_url: imageUrl })
+      .eq("ean", submission.ean)
+      .select("ean");
+    if (upErr) return { ok: false, error: upErr.message };
+    // Ligne absente (rare) : on la crée alors entièrement depuis la soumission.
+    if (!updated || updated.length === 0) {
+      const { error: insErr } = await sb
+        .schema("cosme_check")
+        .from("catalog")
+        .insert({
           ean: submission.ean,
           brand: submission.brand,
           name: submission.name,
           category: submission.category,
           image_url: imageUrl,
           is_active: true,
-        },
-        { onConflict: "ean" },
-      );
-    if (upErr) return { ok: false, error: upErr.message };
+        });
+      if (insErr) return { ok: false, error: insErr.message };
+    }
   } else {
     // Produit hors code-barres : ligne catalogue synthétique (clé déterministe).
     const syntheticEan = `cc-photo-${submission.id}`;
