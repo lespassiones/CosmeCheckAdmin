@@ -16,6 +16,7 @@ import {
   fetchCronJobs,
   fetchTableStats,
   fetchAppliedMigrations,
+  fetchPlatformHealth,
 } from "@/lib/queries/system";
 import { cn, formatInt, formatRelative, formatDateTime } from "@/lib/utils";
 import { HealthPing } from "./HealthPing";
@@ -78,6 +79,14 @@ const LARGE_TABLE_THRESHOLD_BYTES = 100 * 1024 * 1024;
 export default function SystemPage() {
   return (
     <>
+      <SectionHeader
+        title="Santé de la plateforme"
+        subtitle="Le même bilan que la surveillance automatique (alertes email chaque heure si vrai problème)."
+        info="Vérifié automatiquement toutes les heures : erreurs applicatives en série, appels IA en échec, coût IA du jour au-dessus de ton seuil, tâches automatiques (crons) en panne. Si un vrai problème est détecté, tu reçois un email (max 1 par jour par type de problème). Ici tu vois l'état en direct."
+      />
+      <Suspense fallback={<CardSkeleton height="h-24" />}>
+        <PlatformHealth />
+      </Suspense>
 
       <SectionHeader
         title="Health check — CosmetWiki main app"
@@ -125,6 +134,69 @@ export default function SystemPage() {
         <EnvironmentGrid />
       </Suspense>
     </>
+  );
+}
+
+/** Tuiles de santé : vert = OK, rouge = le seuil d'alerte email est dépassé. */
+async function PlatformHealth() {
+  const h = await fetchPlatformHealth();
+  if (!h) return <EmptyState title="Bilan indisponible" description="La RPC de santé n'a pas répondu." />;
+
+  const criticalCrons = [
+    "cosme_check_dispatch_notifications",
+    "cosme_check_nightly_score_maintenance",
+    "cosme_check_run_notif_planner",
+    "cosme_check_brevo_sync",
+  ];
+  const badCrons = (h.crons ?? []).filter(
+    (c) => criticalCrons.includes(c.jobname) && c.active && c.last_status === "failed",
+  );
+  const costOver =
+    h.ai_cost_daily_threshold_usd != null &&
+    h.ai_cost_today_estimated_usd > Number(h.ai_cost_daily_threshold_usd);
+
+  const tiles = [
+    {
+      label: "Erreurs (1 h)",
+      value: String(h.errors_last_hour),
+      bad: h.errors_last_hour >= 5,
+      sub: "seuil d'alerte : 5",
+    },
+    {
+      label: "IA en échec (1 h)",
+      value: String(h.ai_errors_last_hour),
+      bad: h.ai_errors_last_hour >= 5,
+      sub: "seuil d'alerte : 5",
+    },
+    {
+      label: "Coût IA aujourd'hui (estimé)",
+      value: `$${Number(h.ai_cost_today_estimated_usd).toFixed(3)}`,
+      bad: costOver,
+      sub: h.ai_cost_daily_threshold_usd != null ? `seuil : $${h.ai_cost_daily_threshold_usd}` : "aucun seuil défini (Paramètres)",
+    },
+    {
+      label: "Tâches critiques",
+      value: badCrons.length === 0 ? "OK" : `${badCrons.length} en échec`,
+      bad: badCrons.length > 0,
+      sub: badCrons.length > 0 ? badCrons.map((c) => c.jobname).join(", ") : "notifs, maintenance, planner, brevo",
+    },
+  ];
+
+  return (
+    <div className="mb-8 grid grid-cols-2 gap-3 lg:grid-cols-4">
+      {tiles.map((t) => (
+        <article
+          key={t.label}
+          className={cn("neo-card p-4", t.bad ? "ring-1 ring-rose-400" : "ring-1 ring-emerald-200/60")}
+        >
+          <p className="text-[11px] font-medium uppercase tracking-wider text-muted-foreground">{t.label}</p>
+          <p className={cn("mt-1 text-[22px] font-bold tracking-tight", t.bad ? "text-rose-600" : "text-emerald-600")}>
+            {t.value}
+          </p>
+          <p className="truncate text-[11px] text-muted-foreground">{t.sub}</p>
+        </article>
+      ))}
+    </div>
   );
 }
 

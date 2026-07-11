@@ -18,6 +18,7 @@ import {
   FlaskConical,
   Wallet,
   Bell,
+  TrendingUp,
   LogOut,
   Menu,
   X,
@@ -35,6 +36,7 @@ type NavItem = {
 
 const NAV: NavItem[] = [
   { href: "/", label: "Vue d'ensemble", icon: LayoutDashboard },
+  { href: "/growth", label: "Croissance", icon: TrendingUp },
   { href: "/users", label: "Utilisateurs", icon: Users },
   { href: "/activity", label: "Activité", icon: Activity },
   { href: "/feedback", label: "Retours", icon: MessageSquare },

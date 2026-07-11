@@ -111,3 +111,23 @@ export async function fetchAppliedMigrations(): Promise<AppliedMigration[]> {
   }
   return (data ?? []) as AppliedMigration[];
 }
+
+/** Bilan de santé consolidé (même RPC que la surveillance automatique). */
+export type PlatformHealthData = {
+  errors_last_hour: number;
+  ai_errors_last_hour: number;
+  ai_cost_today_estimated_usd: number;
+  ai_cost_daily_threshold_usd: number | null;
+  crons: { jobname: string; schedule: string; active: boolean; last_success: string | null; last_status: string | null }[];
+  checked_at: string;
+};
+
+export async function fetchPlatformHealth(): Promise<PlatformHealthData | null> {
+  const sb = supabaseAdmin();
+  const { data, error } = await sb.rpc("cosme_check_admin_health");
+  if (error || !data) {
+    console.error("[system] fetchPlatformHealth failed", error);
+    return null;
+  }
+  return data as PlatformHealthData;
+}
