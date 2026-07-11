@@ -20,6 +20,7 @@ import {
   Bell,
   TrendingUp,
   ShieldCheck,
+  Boxes,
   LogOut,
   Menu,
   X,
@@ -50,6 +51,7 @@ const NAV: NavItem[] = [
   { href: "/settings", label: "Paramètres", icon: SlidersHorizontal },
   { href: "/billing", label: "Abonnements", icon: CreditCard },
   { href: "/finance", label: "Finance", icon: Wallet },
+  { href: "/services", label: "Services annexes", icon: Boxes },
   { href: "/rgpd", label: "RGPD", icon: ShieldCheck },
   // Système + Sécurité fusionnés (sous-onglets), tout en bas.
   { href: "/system", label: "Système", icon: Cog },
