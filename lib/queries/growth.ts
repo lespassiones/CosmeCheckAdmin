@@ -45,6 +45,11 @@ const EMPTY: GrowthData = {
 export async function fetchGrowth(days: number): Promise<GrowthData> {
   const sb = supabaseAdmin();
   const { data, error } = await sb.rpc("cosme_check_admin_growth", { p_days: days });
-  if (error || !data) return { ...EMPTY, days };
+  if (error || !data) {
+    // JAMAIS silencieux : des zéros muets ont déjà masqué une vraie panne
+    // (pg-safeupdate rejetait le DELETE sans WHERE de la RPC via l'API).
+    console.error("[growth] RPC cosme_check_admin_growth a échoué:", error?.message);
+    return { ...EMPTY, days };
+  }
   return data as GrowthData;
 }
