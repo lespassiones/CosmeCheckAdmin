@@ -82,6 +82,20 @@ export async function listUsers(opts: {
   // 3. Canonical credit overview: effective config + used-this-period + bonus.
   const overview = await fetchOverviewMap(sb);
 
+  // 3b. Vraie « dernière activité » (dernier scan OU dernière action IA).
+  // auth.last_sign_in_at ne bouge qu'à une vraie connexion : avec la session
+  // persistante de l'app, un utilisateur actif chaque jour affichait « il y a
+  // 4 j ». On prend le max(activité, last_sign_in).
+  const lastActivity = new Map<string, string>();
+  try {
+    const { data: acts } = await sb.rpc("cosme_check_admin_last_activity");
+    for (const r of (acts as { user_id: string; last_activity: string }[] | null) ?? []) {
+      lastActivity.set(r.user_id, r.last_activity);
+    }
+  } catch {
+    // best-effort : on retombe sur last_sign_in_at seul.
+  }
+
   const profilesMap = new Map(
     ((profiles ?? []) as { id: string; first_name: string | null; tier: string | null; suspended_at: string | null }[]).map((p) => [
       p.id,
@@ -98,7 +112,13 @@ export async function listUsers(opts: {
       first_name: p?.first_name ?? null,
       tier: (p?.tier === "premium" ? "premium" : "free") as "free" | "premium",
       created_at: u.created_at,
-      last_sign_in_at: u.last_sign_in_at ?? null,
+      last_sign_in_at: (() => {
+        const signIn = u.last_sign_in_at ?? null;
+        const act = lastActivity.get(u.id) ?? null;
+        if (!signIn) return act;
+        if (!act) return signIn;
+        return act > signIn ? act : signIn;
+      })(),
       suspended_at: p?.suspended_at ?? null,
       credits_used_today: o?.used_period ?? 0,
       credits_limit_today: o?.credit_amount ?? 5,

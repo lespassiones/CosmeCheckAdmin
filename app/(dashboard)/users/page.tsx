@@ -86,7 +86,7 @@ async function UsersTable({ search }: { search: string }) {
               <th className="px-5 py-3 text-left font-medium">Tier</th>
               <th className="px-5 py-3 text-right font-medium">Crédits</th>
               <th className="px-5 py-3 text-left font-medium">Renouvellement</th>
-              <th className="px-5 py-3 text-left font-medium">Dernière connexion</th>
+              <th className="px-5 py-3 text-left font-medium">Dernière activité</th>
               <th className="px-5 py-3 text-left font-medium">Inscrit</th>
               <th className="px-5 py-3 text-right font-medium" />
             </tr>
