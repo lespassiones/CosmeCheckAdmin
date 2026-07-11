@@ -82,7 +82,10 @@ async function resolveIdentities(
   return map;
 }
 
-export async function fetchProductErrorReports(limit = 100): Promise<ProductErrorRow[]> {
+export async function fetchProductErrorReports(
+  limit = 100,
+  page = 1,
+): Promise<{ rows: ProductErrorRow[]; hasMore: boolean }> {
   const sb = supabaseAdmin();
   const { data, error } = await sb
     .schema("cosme_check")
@@ -90,15 +93,17 @@ export async function fetchProductErrorReports(limit = 100): Promise<ProductErro
     .select("id, user_id, product_ean, product_name, message, created_at")
     .eq("kind", "product_error")
     .order("created_at", { ascending: false })
-    .limit(Math.min(limit, 500));
+    .range((page - 1) * limit, (page - 1) * limit + limit); // limit+1 -> hasMore
 
-  if (error || !data) return [];
+  if (error || !data) return { rows: [], hasMore: false };
 
-  const rows = data as Array<Omit<ProductErrorRow, "user_email" | "user_first_name">>;
+  const all = data as Array<Omit<ProductErrorRow, "user_email" | "user_first_name">>;
+  const hasMore = all.length > limit;
+  const rows = all.slice(0, limit);
   const ids = rows.map((r) => r.user_id).filter((id): id is string => !!id);
   const identities = await resolveIdentities(ids);
 
-  return rows.map((r) => {
+  const mapped = rows.map((r) => {
     const idn = r.user_id ? identities.get(r.user_id) : undefined;
     return {
       ...r,
@@ -106,6 +111,7 @@ export async function fetchProductErrorReports(limit = 100): Promise<ProductErro
       user_first_name: idn?.firstName ?? null,
     };
   });
+  return { rows: mapped, hasMore };
 }
 
 export async function fetchPhotoSubmissions(

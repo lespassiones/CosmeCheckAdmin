@@ -4,6 +4,7 @@ import { AlertTriangle, Camera, ImageOff, Package } from "lucide-react";
 import { requireAdmin } from "@/lib/authGuard";
 import { PageHeader, SectionHeader } from "@/components/PageHeader";
 import { EmptyState } from "@/components/EmptyState";
+import { Paginator } from "@/components/Paginator";
 import { TableSkeleton } from "@/components/Skeletons";
 import { FeedbackSectionTabs } from "@/components/FeedbackSectionTabs";
 import {
@@ -18,7 +19,7 @@ import { PhotoModerationCard } from "./PhotoModerationCard";
 export const metadata = { title: "Modération produit" };
 export const dynamic = "force-dynamic";
 
-type SearchParams = Promise<{ photos?: string }>;
+type SearchParams = Promise<{ photos?: string; page?: string }>;
 
 function normalisePhotoStatus(raw: string | undefined): PhotoSubmissionStatus | "all" {
   if (raw === "approved" || raw === "rejected" || raw === "all") return raw;
@@ -33,6 +34,7 @@ export default async function ProductModerationPage({
   await requireAdmin();
   const sp = await searchParams;
   const photoStatus = normalisePhotoStatus(sp.photos);
+  const page = Math.max(1, Number(sp.page) || 1);
   const pending = await countPendingModeration();
 
   return (
@@ -57,10 +59,10 @@ export default async function ProductModerationPage({
       {/* Signalements d'erreur */}
       <SectionHeader
         title="Signalements d'erreur"
-        subtitle="Messages envoyés depuis « Signaler une information incorrecte » — 100 derniers"
+        subtitle="Messages envoyés depuis « Signaler une information incorrecte »"
       />
-      <Suspense fallback={<TableSkeleton rows={6} cols={4} />}>
-        <ErrorReportsTable />
+      <Suspense key={page} fallback={<TableSkeleton rows={6} cols={4} />}>
+        <ErrorReportsTable page={page} photoStatus={photoStatus} />
       </Suspense>
     </>
   );
@@ -123,8 +125,15 @@ async function PhotoGrid({ status }: { status: PhotoSubmissionStatus | "all" }) 
   );
 }
 
-async function ErrorReportsTable() {
-  const rows = await fetchProductErrorReports(100);
+const REPORTS_PER_PAGE = 50;
+
+async function ErrorReportsTable({ page, photoStatus }: { page: number; photoStatus: string }) {
+  const { rows, hasMore } = await fetchProductErrorReports(REPORTS_PER_PAGE, page);
+  const makeHref = (p: number) =>
+    `/feedback/products?${new URLSearchParams({
+      ...(photoStatus !== "pending" ? { photos: photoStatus } : {}),
+      ...(p > 1 ? { page: String(p) } : {}),
+    })}`;
   if (rows.length === 0) {
     return (
       <div className="mb-8">
@@ -188,6 +197,9 @@ async function ErrorReportsTable() {
             ))}
           </tbody>
         </table>
+      </div>
+      <div className="px-5 pb-4">
+        <Paginator page={page} per={REPORTS_PER_PAGE} hasMore={hasMore} makeHref={makeHref} shownCount={rows.length} />
       </div>
     </article>
   );

@@ -5,6 +5,7 @@ import { PageHeader } from "@/components/PageHeader";
 import { EmptyState } from "@/components/EmptyState";
 import { TableSkeleton } from "@/components/Skeletons";
 import { listUsers } from "@/lib/queries/users";
+import { Paginator } from "@/components/Paginator";
 import { formatRelative, cn } from "@/lib/utils";
 
 export const metadata = { title: "Utilisateurs" };
@@ -18,7 +19,7 @@ const RENEWAL_LABELS: Record<string, string> = {
   yearly: "📈 Par an",
 };
 
-type SearchParams = { q?: string };
+type SearchParams = { q?: string; page?: string };
 
 export default async function UsersPage({
   searchParams,
@@ -27,6 +28,7 @@ export default async function UsersPage({
 }) {
   const params = (await searchParams) ?? {};
   const search = (params.q ?? "").trim();
+  const page = Math.max(1, Number(params.page) || 1);
 
   return (
     <>
@@ -47,15 +49,23 @@ export default async function UsersPage({
         }
       />
 
-      <Suspense key={search} fallback={<TableSkeleton rows={10} cols={6} />}>
-        <UsersTable search={search} />
+      <Suspense key={`${search}-${page}`} fallback={<TableSkeleton rows={10} cols={6} />}>
+        <UsersTable search={search} page={page} />
       </Suspense>
     </>
   );
 }
 
-async function UsersTable({ search }: { search: string }) {
-  const rows = await listUsers({ search, limit: 200 });
+const PER_PAGE = 50;
+
+async function UsersTable({ search, page }: { search: string; page: number }) {
+  // La liste complète tient en mémoire (1 appel) ; la pagination est un
+  // découpage d'affichage — même UX que le Catalogue, page légère.
+  const all = await listUsers({ search, limit: 500 });
+  const rows = all.slice((page - 1) * PER_PAGE, page * PER_PAGE);
+  const hasMore = all.length > page * PER_PAGE;
+  const makeHref = (p: number) =>
+    `/users?${new URLSearchParams({ ...(search ? { q: search } : {}), ...(p > 1 ? { page: String(p) } : {}) })}`;
 
   if (rows.length === 0) {
     return (
@@ -74,8 +84,8 @@ async function UsersTable({ search }: { search: string }) {
   return (
     <article className="neo-card overflow-hidden">
       <div className="mb-0 px-5 py-3 text-[12px] text-muted-foreground">
-        {rows.length} compte{rows.length > 1 ? "s" : ""}{" "}
-        {search ? `trouvé${rows.length > 1 ? "s" : ""}` : "au total"}.
+        {all.length} compte{all.length > 1 ? "s" : ""}{" "}
+        {search ? `trouvé${all.length > 1 ? "s" : ""}` : "au total"}.
       </div>
       <div className="overflow-x-auto scrollbar-thin">
         <table className="w-full text-[13px]">
@@ -166,6 +176,9 @@ async function UsersTable({ search }: { search: string }) {
             })}
           </tbody>
         </table>
+      </div>
+      <div className="px-5 pb-4">
+        <Paginator page={page} per={PER_PAGE} hasMore={hasMore} makeHref={makeHref} shownCount={rows.length} />
       </div>
     </article>
   );

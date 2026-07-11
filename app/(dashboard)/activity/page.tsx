@@ -3,6 +3,7 @@ import { Activity, Sparkles, ScanLine, ShieldCheck, MessageCircle } from "lucide
 import { PageHeader, SectionHeader } from "@/components/PageHeader";
 import { StatCard } from "@/components/StatCard";
 import { EmptyState } from "@/components/EmptyState";
+import { Paginator } from "@/components/Paginator";
 import { ActivityTrendChart } from "@/components/charts/ActivityTrendChart";
 import { CategoryPie } from "@/components/charts/CategoryPie";
 import {
@@ -48,7 +49,12 @@ const VERDICT_META: Record<
   hors_sujet: { label: "Hors sujet", pill: "pill", bar: "bg-slate-400" },
 };
 
-export default function ActivityPage() {
+export default async function ActivityPage({
+  searchParams,
+}: {
+  searchParams?: Promise<{ page?: string }>;
+}) {
+  const page = Math.max(1, Number((await searchParams)?.page) || 1);
   return (
     <>
       <PageHeader
@@ -68,8 +74,8 @@ export default function ActivityPage() {
       </Suspense>
 
       <SectionHeader title="Analyses récentes" subtitle="Dernières analyses cross-user" />
-      <Suspense fallback={<TableSkeleton rows={8} cols={5} />}>
-        <RecentAnalyses />
+      <Suspense key={page} fallback={<TableSkeleton rows={8} cols={5} />}>
+        <RecentAnalyses page={page} />
       </Suspense>
 
       <SectionHeader title="Tendances de scan" subtitle="Cumul historique" />
@@ -163,8 +169,10 @@ async function ActivityTrends() {
   );
 }
 
-async function RecentAnalyses() {
-  const recent = await fetchRecentAnalyses(30);
+const ANALYSES_PER_PAGE = 30;
+
+async function RecentAnalyses({ page }: { page: number }) {
+  const { rows: recent, hasMore } = await fetchRecentAnalyses(ANALYSES_PER_PAGE, page);
 
   if (recent.length === 0) {
     return (
@@ -223,6 +231,9 @@ async function RecentAnalyses() {
             ))}
           </tbody>
         </table>
+      </div>
+      <div className="px-5 pb-4">
+        <Paginator page={page} per={ANALYSES_PER_PAGE} hasMore={hasMore} makeHref={(p: number) => (p > 1 ? `/activity?page=${p}` : "/activity")} shownCount={recent.length} />
       </div>
     </article>
   );

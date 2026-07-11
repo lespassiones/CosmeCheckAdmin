@@ -119,17 +119,23 @@ export type RecentAnalysisRow = {
   created_at: string;
 };
 
-export async function fetchRecentAnalyses(limit = 30): Promise<RecentAnalysisRow[]> {
+export async function fetchRecentAnalyses(
+  limit = 30,
+  page = 1,
+): Promise<{ rows: RecentAnalysisRow[]; hasMore: boolean }> {
   const sb = supabaseAdmin();
 
+  // Pagination reelle en base (range) : on demande limit+1 lignes pour savoir
+  // s'il existe une page suivante sans count() couteux.
+  const from = (page - 1) * limit;
   const { data, error } = await sb
     .schema("cosme_check")
     .from("analyses")
     .select("id, user_id, product_label, score, category, created_at")
     .order("created_at", { ascending: false })
-    .limit(limit);
+    .range(from, from + limit);
 
-  if (error || !data) return [];
+  if (error || !data) return { rows: [], hasMore: false };
 
   const rows = data as Array<{
     id: string;
@@ -150,15 +156,19 @@ export async function fetchRecentAnalyses(limit = 30): Promise<RecentAnalysisRow
     }
   }
 
-  return rows.map((r) => ({
-    id: r.id,
-    user_id: r.user_id,
-    user_email: r.user_id ? emailById.get(r.user_id) ?? "—" : "—",
-    product_label: r.product_label,
-    score: r.score,
-    category: r.category,
-    created_at: r.created_at,
-  }));
+  const hasMore = rows.length > limit;
+  return {
+    hasMore,
+    rows: rows.slice(0, limit).map((r) => ({
+      id: r.id,
+      user_id: r.user_id,
+      user_email: r.user_id ? emailById.get(r.user_id) ?? "—" : "—",
+      product_label: r.product_label,
+      score: r.score,
+      category: r.category,
+      created_at: r.created_at,
+    })),
+  };
 }
 
 // ─── Top distributions (brand / product / category) ───────────────────────
