@@ -9,6 +9,7 @@ import {
   sendTest,
   type AudienceSample,
 } from "./actions";
+import { InfoHint } from "@/components/InfoHint";
 import { PhoneNotificationPreview } from "./PhoneNotificationPreview";
 
 const SEGMENTS: { value: string; label: string; hint: string }[] = [
@@ -92,7 +93,10 @@ export function NotificationComposer() {
       <article className="neo-card p-5 lg:col-span-2">
         <div className="grid grid-cols-1 gap-3 sm:grid-cols-2">
           <div>
-            <label className={lbl}>Audience</label>
+            <label className={lbl}>
+              Audience
+              <InfoHint text="À qui part la notification. « Tous (joignables) » = tous ceux qui ont l'app installée ET les notifications activées. Les autres choix filtrent : par exemple « Inactifs 7 j » = uniquement ceux qui n'ont rien scanné depuis 7 jours. Personne d'autre ne la recevra." />
+            </label>
             <select className={input} value={segment} onChange={(e) => { setSegment(e.target.value); setAudience(null); }}>
               {SEGMENTS.map((s) => (
                 <option key={s.value} value={s.value}>{s.label}</option>
@@ -101,7 +105,10 @@ export function NotificationComposer() {
             <p className="mt-1 text-[11px] text-muted-foreground">{segHint}</p>
           </div>
           <div>
-            <label className={lbl}>Action au tap</label>
+            <label className={lbl}>
+              Action au tap
+              <InfoHint text="L'écran qui s'ouvre quand la personne TOUCHE la notification sur son téléphone. Exemple : « Ma routine » ouvre directement l'onglet routine de l'app. « Aucun » ouvre simplement l'app sur l'accueil." />
+            </label>
             <select className={input} value={deeplink} onChange={(e) => setDeeplink(e.target.value)}>
               {DEEPLINKS.map((d) => (
                 <option key={d.value} value={d.value}>{d.label}</option>
@@ -109,7 +116,10 @@ export function NotificationComposer() {
             </select>
           </div>
           <div className="sm:col-span-2">
-            <label className={lbl}>Titre</label>
+            <label className={lbl}>
+              Titre
+              <InfoHint text="La ligne en GRAS sur le téléphone (vois l'aperçu à droite). Court et accrocheur : au-delà d'une ligne, iOS coupe avec « ... »." />
+            </label>
             <input
               className={input}
               maxLength={80}
@@ -119,7 +129,10 @@ export function NotificationComposer() {
             />
           </div>
           <div className="sm:col-span-2">
-            <label className={lbl}>Message</label>
+            <label className={lbl}>
+              Message
+              <InfoHint text="Le texte sous le titre. Sur iPhone, seules ~2 lignes sont visibles sur l'écran verrouillé : mets l'essentiel au début." />
+            </label>
             <textarea
               className={`${input} min-h-[80px] resize-y`}
               maxLength={180}
@@ -130,7 +143,10 @@ export function NotificationComposer() {
             <p className="mt-1 text-[11px] text-muted-foreground">{body.length}/180</p>
           </div>
           <div className="sm:col-span-2">
-            <label className={lbl}>Programmer (optionnel)</label>
+            <label className={lbl}>
+              Programmer (optionnel)
+              <InfoHint text="Laisse vide pour envoyer tout de suite. Sinon choisis une date et une heure : la campagne restera en attente et partira automatiquement à ce moment-là (à 15 minutes près)." />
+            </label>
             <input
               className={input}
               type="datetime-local"
@@ -177,7 +193,10 @@ export function NotificationComposer() {
       {/* Apercu + audience */}
       <div className="flex flex-col gap-4">
         <article className="neo-card p-5">
-          <p className={`${lbl} mb-3`}>Apercu sur le telephone</p>
+          <p className={`${lbl} mb-3`}>
+            Apercu sur le telephone
+            <InfoHint text="Rendu à l'échelle réelle d'un iPhone (écran verrouillé) : la notification a la même taille relative que sur un vrai téléphone. Elle se met à jour pendant que tu tapes." />
+          </p>
           <PhoneNotificationPreview title={title} body={body} />
         </article>
 

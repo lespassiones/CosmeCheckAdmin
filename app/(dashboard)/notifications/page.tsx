@@ -36,7 +36,7 @@ export default async function NotificationsPage() {
 
       <SectionHeader
         title="Scenarios automatiques"
-        info="Le planner enfile chaque jour des notifications ciblees selon le comportement des utilisateurs (inactivite, onboarding, routine vide, digest premium). Chaque scenario a plusieurs variantes de message (choisies automatiquement). Active un scenario + le planner maitre pour qu'il tourne. « Simuler » compte l'audience sans rien envoyer."
+        info="Un scénario = une règle simple : « SI un utilisateur est dans telle situation, ALORS il reçoit tel message ». Exemple : quelqu'un n'a rien scanné depuis 7 jours → il reçoit une relance. Le planner (l'interrupteur du haut) applique ces règles automatiquement une fois par jour. Pour qu'un message parte, il faut DEUX choses : le planner allumé + le scénario allumé. Survole le « i » de chaque scénario pour une explication avec exemple. Les scénarios sont prédéfinis pour l'instant (on pourra en ajouter plus tard) ; clique sur un scénario pour voir ses messages dans le téléphone à droite."
       />
       <div className="mb-8">
         <ScenariosPanel initial={scenarios} />
