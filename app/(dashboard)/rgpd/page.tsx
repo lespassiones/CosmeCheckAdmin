@@ -265,7 +265,7 @@ export default function RgpdPage() {
             <p className="mb-2 pl-1 text-[11px] font-bold uppercase tracking-wider text-muted-foreground">
               {group.title}
             </p>
-            <article className="neo-card overflow-hidden">
+            <article className="neo-card">
               {group.items.map((it, i) => (
                 <ChecklistRow
                   key={it.id}
@@ -284,7 +284,7 @@ export default function RgpdPage() {
         title="🗂️ À faire"
         subtitle="Papiers et abonnements, hors informatique. Coche une case une fois la démarche réalisée."
       />
-      <article className="neo-card mb-10 overflow-hidden">
+      <article className="neo-card mb-10">
         {TODO_ITEMS.map((it, i) => (
           <ChecklistRow
             key={it.id}
