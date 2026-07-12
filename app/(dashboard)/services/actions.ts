@@ -38,12 +38,13 @@ export async function saveService(input: SaveServiceInput): Promise<SvcResult> {
 
   const billing = input.billing === "paid" ? "paid" : "free";
   const rawAmount = Number(input.monthly_amount_eur);
+  // Montant mensuel OPTIONNEL même en payant : un service facturé à l'année
+  // (ex. domaine / email, suivi dans Finance) peut être « Payant » sans montant
+  // mensuel ici — on enregistre alors la ligne sans rien pousser en Finance.
   const amount =
-    billing === "paid" && Number.isFinite(rawAmount) ? Number(rawAmount.toFixed(2)) : null;
-
-  if (billing === "paid" && (amount === null || amount <= 0)) {
-    return { ok: false, error: "Renseigne un montant mensuel valide pour un service payant." };
-  }
+    billing === "paid" && Number.isFinite(rawAmount) && rawAmount > 0
+      ? Number(rawAmount.toFixed(2))
+      : null;
 
   const shouldSync = billing === "paid" && input.active && amount !== null;
   let financeExpenseId = (current.finance_expense_id as string | null) ?? null;

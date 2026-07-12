@@ -17,6 +17,7 @@ export type ExternalService = {
   note: string | null;
   active: boolean;
   finance_expense_id: string | null;
+  console_url: string | null;
   sort_order: number;
 };
 
@@ -26,7 +27,7 @@ export async function listExternalServices(): Promise<ExternalService[]> {
     .schema("cosme_check")
     .from("external_services")
     .select(
-      "id, name, category, used_mobile, used_web, billing, monthly_amount_eur, note, active, finance_expense_id, sort_order",
+      "id, name, category, used_mobile, used_web, billing, monthly_amount_eur, note, active, finance_expense_id, console_url, sort_order",
     )
     .order("sort_order", { ascending: true });
   return (data ?? []) as ExternalService[];

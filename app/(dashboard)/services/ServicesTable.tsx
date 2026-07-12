@@ -1,7 +1,7 @@
 "use client";
 
 import { useState, useTransition } from "react";
-import { Check } from "lucide-react";
+import { Check, ExternalLink } from "lucide-react";
 import { toast } from "sonner";
 import { saveService } from "./actions";
 import type { ExternalService } from "@/lib/queries/services";
@@ -66,7 +66,20 @@ function Row({ svc }: { svc: ExternalService }) {
   return (
     <tr className={active ? "" : "opacity-50"}>
       <td className="px-4 py-3">
-        <div className="font-semibold text-foreground">{svc.name}</div>
+        {svc.console_url ? (
+          <a
+            href={svc.console_url}
+            target="_blank"
+            rel="noopener noreferrer"
+            className="inline-flex items-center gap-1 font-semibold text-violet-700 hover:underline"
+            title={`Ouvrir ${svc.name}`}
+          >
+            {svc.name}
+            <ExternalLink className="h-3 w-3 opacity-70" />
+          </a>
+        ) : (
+          <div className="font-semibold text-foreground">{svc.name}</div>
+        )}
         {svc.category && (
           <div className="text-[11px] text-muted-foreground">{svc.category}</div>
         )}
