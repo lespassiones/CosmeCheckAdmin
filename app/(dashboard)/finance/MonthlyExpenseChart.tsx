@@ -13,7 +13,19 @@ import {
 } from "recharts";
 import type { Expense } from "@/lib/queries/finance";
 
-type Bucket = { label: string; ai: number; recurring: number; oneTime: number; total: number };
+type Item = { label: string; value: number; color: string };
+type Bucket = {
+  label: string;
+  ai: number;
+  recurring: number;
+  oneTime: number;
+  total: number;
+  items: Item[];
+};
+
+const RECUR = "#8b5cf6";
+const AI = "#f43f5e";
+const ONE = "#f59e0b";
 
 const PRESETS = [
   { key: "1d", label: "1 jour", days: 1 },
@@ -26,6 +38,8 @@ const PRESETS = [
 
 const iso = (d: Date) => d.toISOString().slice(0, 10);
 const daysInMonth = (y: number, m0: number) => new Date(Date.UTC(y, m0 + 1, 0)).getUTCDate();
+const perMonthOf = (e: Expense) =>
+  e.period === "monthly" ? e.amount_eur : e.period === "annual" ? e.amount_eur / 12 : 0;
 
 export function MonthlyExpenseChart({
   aiDaily,
@@ -59,6 +73,8 @@ export function MonthlyExpenseChart({
 
     const aiByDay = new Map(aiDaily.map((r) => [r.day, r.eur]));
     const active = expenses.filter((e) => e.active);
+    // Abonnements récurrents (mensuel/annuel) actifs — détaillés par NOM dans le tooltip.
+    const recurringActive = active.filter((e) => e.period !== "one_time" && perMonthOf(e) > 0);
 
     const out: Bucket[] = [];
     if (gran === "day") {
@@ -66,12 +82,17 @@ export function MonthlyExpenseChart({
         const d = new Date(start);
         d.setUTCDate(d.getUTCDate() + i);
         const key = iso(d);
+        const dim = daysInMonth(d.getUTCFullYear(), d.getUTCMonth());
         const ai = aiByDay.get(key) ?? 0;
-        const oneTime = active
-          .filter((e) => e.period === "one_time" && e.occurred_on === key)
-          .reduce((s, e) => s + e.amount_eur, 0);
-        const recurring = recurringRunRate / daysInMonth(d.getUTCFullYear(), d.getUTCMonth());
-        out.push({ label: key.slice(5), ai, recurring, oneTime, total: ai + recurring + oneTime });
+        const oneTimeList = active.filter((e) => e.period === "one_time" && e.occurred_on === key);
+        const oneTime = oneTimeList.reduce((s, e) => s + e.amount_eur, 0);
+        const recurring = recurringRunRate / dim;
+        const items: Item[] = [
+          ...recurringActive.map((e) => ({ label: e.label, value: perMonthOf(e) / dim, color: RECUR })),
+          ...(ai > 0 ? [{ label: "IA (OpenAI)", value: ai, color: AI }] : []),
+          ...oneTimeList.map((e) => ({ label: e.label, value: e.amount_eur, color: ONE })),
+        ];
+        out.push({ label: key.slice(5), ai, recurring, oneTime, total: ai + recurring + oneTime, items });
       }
     } else {
       // buckets mensuels de start.month à end.month
@@ -81,11 +102,15 @@ export function MonthlyExpenseChart({
         const ym = `${cur.getUTCFullYear()}-${String(cur.getUTCMonth() + 1).padStart(2, "0")}`;
         let ai = 0;
         for (const [day, eur] of aiByDay) if (day.slice(0, 7) === ym) ai += eur;
-        const oneTime = active
-          .filter((e) => e.period === "one_time" && e.occurred_on.slice(0, 7) === ym)
-          .reduce((s, e) => s + e.amount_eur, 0);
+        const oneTimeList = active.filter((e) => e.period === "one_time" && e.occurred_on.slice(0, 7) === ym);
+        const oneTime = oneTimeList.reduce((s, e) => s + e.amount_eur, 0);
         const recurring = recurringRunRate;
-        out.push({ label: ym.slice(2), ai, recurring, oneTime, total: ai + recurring + oneTime });
+        const items: Item[] = [
+          ...recurringActive.map((e) => ({ label: e.label, value: perMonthOf(e), color: RECUR })),
+          ...(ai > 0 ? [{ label: "IA (OpenAI)", value: ai, color: AI }] : []),
+          ...oneTimeList.map((e) => ({ label: e.label, value: e.amount_eur, color: ONE })),
+        ];
+        out.push({ label: ym.slice(2), ai, recurring, oneTime, total: ai + recurring + oneTime, items });
         cur.setUTCMonth(cur.getUTCMonth() + 1);
       }
     }
@@ -141,16 +166,58 @@ export function MonthlyExpenseChart({
           <CartesianGrid strokeDasharray="3 3" stroke="rgba(0,0,0,0.05)" vertical={false} />
           <XAxis dataKey="label" tick={{ fontSize: 11 }} />
           <YAxis tick={{ fontSize: 11 }} tickFormatter={(v: number) => `${Math.round(v)}€`} width={46} />
-          <Tooltip
-            formatter={(v: number, name: string) => [`${Number(v).toFixed(2)} €`, name]}
-            contentStyle={{ fontSize: 12, borderRadius: 10 }}
-          />
+          <Tooltip content={<DetailTooltip />} cursor={{ fill: "rgba(0,0,0,0.04)" }} />
           <Legend wrapperStyle={{ fontSize: 11 }} />
-          <Bar dataKey="recurring" name="Abonnements" stackId="a" fill="#8b5cf6" />
-          <Bar dataKey="ai" name="IA (OpenAI)" stackId="a" fill="#f43f5e" />
-          <Bar dataKey="oneTime" name="Ponctuel" stackId="a" fill="#f59e0b" radius={[4, 4, 0, 0]} />
+          <Bar dataKey="recurring" name="Abonnements" stackId="a" fill={RECUR} />
+          <Bar dataKey="ai" name="IA (OpenAI)" stackId="a" fill={AI} />
+          <Bar dataKey="oneTime" name="Ponctuel" stackId="a" fill={ONE} radius={[4, 4, 0, 0]} />
         </BarChart>
       </ResponsiveContainer>
+    </div>
+  );
+}
+
+/**
+ * Tooltip détaillé : liste CHAQUE dépense par son nom (abonnements, IA,
+ * ponctuels) avec sa pastille de couleur et son montant, + le total — au lieu
+ * des simples totaux par groupe.
+ */
+function DetailTooltip({
+  active,
+  payload,
+  label,
+}: {
+  active?: boolean;
+  payload?: Array<{ payload: Bucket }>;
+  label?: string;
+}) {
+  if (!active || !payload || payload.length === 0) return null;
+  const bucket = payload[0]?.payload;
+  if (!bucket) return null;
+  const items = bucket.items.filter((it) => it.value > 0.004);
+  if (items.length === 0) return null;
+
+  return (
+    <div
+      className="rounded-lg border border-black/[0.08] bg-white px-3 py-2 shadow-lg"
+      style={{ fontSize: 12 }}
+    >
+      <p className="mb-1.5 font-semibold text-foreground">{label}</p>
+      <ul className="space-y-1">
+        {items.map((it, i) => (
+          <li key={i} className="flex items-center gap-2">
+            <span className="h-2 w-2 shrink-0 rounded-full" style={{ background: it.color }} />
+            <span className="mr-4 max-w-[210px] truncate text-foreground/80">{it.label}</span>
+            <span className="ml-auto font-medium tabular-nums text-foreground">
+              {it.value.toFixed(2)} €
+            </span>
+          </li>
+        ))}
+      </ul>
+      <div className="mt-1.5 flex items-center justify-between gap-4 border-t border-black/[0.06] pt-1.5 font-semibold">
+        <span>Total</span>
+        <span className="tabular-nums">{bucket.total.toFixed(2)} €</span>
+      </div>
     </div>
   );
 }
