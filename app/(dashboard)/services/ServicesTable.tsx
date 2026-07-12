@@ -31,6 +31,19 @@ export function ServicesTable({ services }: { services: ExternalService[] }) {
   );
 }
 
+/** Logo (favicon officiel) du service, dérivé du domaine racine de sa console. */
+function faviconFor(consoleUrl: string | null): string | null {
+  if (!consoleUrl) return null;
+  try {
+    const host = new URL(consoleUrl).hostname;
+    const parts = host.split(".");
+    const root = parts.length > 2 ? parts.slice(-2).join(".") : host;
+    return `https://www.google.com/s2/favicons?sz=64&domain=${root}`;
+  } catch {
+    return null;
+  }
+}
+
 function Row({ svc }: { svc: ExternalService }) {
   const [mobile, setMobile] = useState(svc.used_mobile);
   const [web, setWeb] = useState(svc.used_web);
@@ -42,6 +55,7 @@ function Row({ svc }: { svc: ExternalService }) {
   const [pending, start] = useTransition();
 
   const willSyncFinance = billing === "paid" && active && Number(amount) > 0;
+  const favicon = faviconFor(svc.console_url);
 
   function save() {
     start(async () => {
@@ -66,23 +80,42 @@ function Row({ svc }: { svc: ExternalService }) {
   return (
     <tr className={active ? "" : "opacity-50"}>
       <td className="px-4 py-3">
-        {svc.console_url ? (
-          <a
-            href={svc.console_url}
-            target="_blank"
-            rel="noopener noreferrer"
-            className="inline-flex items-center gap-1 font-semibold text-violet-700 hover:underline"
-            title={`Ouvrir ${svc.name}`}
-          >
-            {svc.name}
-            <ExternalLink className="h-3 w-3 opacity-70" />
-          </a>
-        ) : (
-          <div className="font-semibold text-foreground">{svc.name}</div>
-        )}
-        {svc.category && (
-          <div className="text-[11px] text-muted-foreground">{svc.category}</div>
-        )}
+        <div className="flex items-center gap-2.5">
+          {favicon ? (
+            // eslint-disable-next-line @next/next/no-img-element
+            <img
+              src={favicon}
+              alt=""
+              width={20}
+              height={20}
+              className="h-5 w-5 shrink-0 rounded-[5px] ring-1 ring-black/[0.06]"
+              onError={(e) => {
+                e.currentTarget.style.display = "none";
+              }}
+            />
+          ) : (
+            <span className="h-5 w-5 shrink-0" />
+          )}
+          <div className="min-w-0">
+            {svc.console_url ? (
+              <a
+                href={svc.console_url}
+                target="_blank"
+                rel="noopener noreferrer"
+                className="inline-flex items-center gap-1 font-semibold text-violet-700 hover:underline"
+                title={`Ouvrir ${svc.name}`}
+              >
+                {svc.name}
+                <ExternalLink className="h-3 w-3 opacity-70" />
+              </a>
+            ) : (
+              <div className="font-semibold text-foreground">{svc.name}</div>
+            )}
+            {svc.category && (
+              <div className="text-[11px] text-muted-foreground">{svc.category}</div>
+            )}
+          </div>
+        </div>
       </td>
       <td className="px-3 py-3 text-center">
         <input
