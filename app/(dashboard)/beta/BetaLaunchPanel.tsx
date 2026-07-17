@@ -35,11 +35,13 @@ export function BetaLaunchPanel({ pending }: { pending: number }) {
 
   return (
     <article className="neo-card mb-8 p-5">
-      <h3 className="text-[15px] font-semibold">Lancer la phase de bêta test</h3>
+      <h3 className="text-[15px] font-semibold">Invitations bêta (automatiques)</h3>
       <p className="mt-1 max-w-2xl text-[13px] text-muted-foreground">
-        Envoie l&apos;email d&apos;accès (+ lien du formulaire de retour) à tous les inscrits
-        pas encore invités. Idempotent : une même personne n&apos;est jamais invitée deux fois.
-        Tu peux relancer le bouton pour de nouvelles vagues d&apos;inscription.
+        L&apos;email d&apos;accès part désormais <strong>automatiquement</strong> dès qu&apos;une
+        personne s&apos;inscrit sur <code>/beta</code> — tu n&apos;as plus besoin de cliquer.
+        Ce bouton ne sert plus qu&apos;en secours : il (re)envoie l&apos;email d&apos;accès aux
+        inscrits encore « en attente » (ex. un envoi automatique qui a échoué). Idempotent :
+        une même personne n&apos;est jamais invitée deux fois.
       </p>
 
       <div className="mt-4">
@@ -50,7 +52,7 @@ export function BetaLaunchPanel({ pending }: { pending: number }) {
             disabled={pending === 0 || isPending}
             className="rounded-xl bg-rose-600 px-4 py-2.5 text-[13px] font-semibold text-white transition-colors hover:bg-rose-700 disabled:cursor-not-allowed disabled:opacity-50"
           >
-            Envoyer les invitations ({pending})
+            Renvoyer aux inscrits en attente ({pending})
           </button>
         ) : (
           <div className="flex flex-wrap items-center gap-2">
