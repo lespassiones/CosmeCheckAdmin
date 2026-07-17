@@ -11,6 +11,7 @@ import {
   listCatalogProducts,
   type CatalogFilters,
 } from "@/lib/queries/catalogDb";
+import { countPendingModeration } from "@/lib/queries/productModeration";
 import { formatInt, cn } from "@/lib/utils";
 
 export const metadata = { title: "Base produits (catalog)" };
@@ -65,10 +66,16 @@ function StatsSkeleton() {
 
 /** Barre de stats — async, streamée en Suspense pour ne PAS bloquer la liste. */
 async function CatalogStatsBar() {
-  const stats = await fetchCatalogStats();
+  const [stats, pending] = await Promise.all([fetchCatalogStats(), countPendingModeration()]);
   return (
     <div className={STATS_GRID}>
       <Stat label="Total" value={stats.total} href="/catalog/database" />
+      <Stat
+        label="Contributions photo"
+        value={pending.photos}
+        tone="text-emerald-600"
+        href="/feedback/products"
+      />
       <Stat label="Avec photo" value={stats.with_photo} href="/catalog/database?photo=with" />
       <Stat label="Sans photo" value={stats.without_photo} tone="text-rose-600" href="/catalog/database?photo=without" />
       <Stat label="Avec score" value={stats.with_score} href="/catalog/database?score=with" />

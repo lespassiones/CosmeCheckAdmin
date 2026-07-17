@@ -195,3 +195,96 @@ export async function rejectPhotoSubmission(formData: FormData): Promise<ActionR
   revalidatePath("/feedback/products");
   return { ok: true };
 }
+
+// ── Contribution scan : OCR de la photo ingrédients + publication au catalogue ──
+
+export type OcrActionResult =
+  | { ok: true; inci: string; name: string | null; brand: string | null }
+  | { ok: false; error: string };
+
+/**
+ * Lance l'OCR (edge admin-ocr-submission) sur la photo « ingrédients » d'une
+ * contribution : réutilise le moteur OCR du scan mobile (gpt-4o-mini vision) +
+ * lit la marque/nom sur le devant. Persiste extracted_inci/name/brand. L'admin
+ * relit/corrige avant de publier.
+ */
+export async function ocrSubmission(submissionId: string): Promise<OcrActionResult> {
+  await requireAdmin();
+  if (!submissionId) return { ok: false, error: "Identifiant manquant." };
+  const sb = supabaseAdmin();
+  try {
+    const { data, error } = await sb.functions.invoke("admin-ocr-submission", {
+      body: { submissionId },
+    });
+    if (error) return { ok: false, error: error.message ?? "Échec de l'OCR." };
+    const d = (data ?? {}) as { ok?: boolean; inci?: string; name?: string | null; brand?: string | null; reason?: string };
+    if (!d.ok) return { ok: false, error: d.reason ?? "OCR sans résultat lisible." };
+    revalidatePath("/feedback/products");
+    return { ok: true, inci: d.inci ?? "", name: d.name ?? null, brand: d.brand ?? null };
+  } catch (e) {
+    return { ok: false, error: e instanceof Error ? e.message : "Erreur OCR." };
+  }
+}
+
+export type PublishInput = {
+  submissionId: string;
+  ean: string;
+  name: string;
+  brand: string;
+  inci: string;
+  category: string;
+  imagePath: string;
+};
+export type PublishResult = { ok: true; score: number; scoreLabel: string } | { ok: false; error: string };
+
+/**
+ * Publie une contribution au catalogue : note l'INCI (relu par l'admin) via
+ * l'edge admin-score-upsert (moteur V2 identique au reste du catalogue), avec la
+ * photo devant comme image. search_norm/search_key sont des colonnes GÉNÉRÉES →
+ * le produit est immédiatement recherchable. La soumission passe à 'approved'.
+ */
+export async function publishSubmission(input: PublishInput): Promise<PublishResult> {
+  const admin = await requireAdmin();
+  const ean = input.ean?.trim();
+  const inci = input.inci?.trim();
+  if (!ean) return { ok: false, error: "EAN manquant." };
+  if (!inci || inci.length < 20) {
+    return { ok: false, error: "Liste d'ingrédients trop courte — relis la photo ou corrige-la." };
+  }
+  const sb = supabaseAdmin();
+  const imageUrl = input.imagePath
+    ? sb.storage.from(BUCKET).getPublicUrl(input.imagePath).data.publicUrl
+    : null;
+  try {
+    const { data, error } = await sb.functions.invoke("admin-score-upsert", {
+      body: {
+        ean,
+        name: input.name?.trim() || null,
+        brand: input.brand?.trim() || null,
+        inci,
+        category: input.category?.trim() || null,
+        image_url: imageUrl,
+      },
+    });
+    if (error) return { ok: false, error: error.message ?? "Échec de la publication." };
+    const d = (data ?? {}) as { ok?: boolean; reason?: string; score?: number; scoreLabel?: string };
+    if (!d.ok) return { ok: false, error: d.reason ?? "Échec de la notation." };
+
+    await sb
+      .schema("cosme_check")
+      .from("catalog_photo_submissions")
+      .update({ status: "approved", reviewed_at: new Date().toISOString(), reviewed_by: admin.id })
+      .eq("id", input.submissionId);
+
+    await logAudit({
+      adminEmail: admin.email,
+      action: "product_photo.publish",
+      payload: { submission_id: input.submissionId, ean, score: d.score },
+    });
+
+    revalidatePath("/feedback/products");
+    return { ok: true, score: d.score ?? 0, scoreLabel: d.scoreLabel ?? "" };
+  } catch (e) {
+    return { ok: false, error: e instanceof Error ? e.message : "Erreur de publication." };
+  }
+}

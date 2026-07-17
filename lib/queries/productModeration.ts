@@ -43,6 +43,13 @@ export type PhotoSubmissionRow = {
   status: PhotoSubmissionStatus;
   created_at: string;
   reviewed_at: string | null;
+  /** Résultats OCR déjà extraits (workflow contribution), relisibles par l'admin. */
+  extracted_inci: string | null;
+  extracted_name: string | null;
+  extracted_brand: string | null;
+  /** Le produit (EAN) est-il DÉJÀ enrichi au catalogue (INCI présent) ? Sinon =
+   *  contribution à décrypter + publier. */
+  catalog_has_inci: boolean;
 };
 
 /** Résout prénom (user_profiles) + email (auth) pour un lot d'user_ids. */
@@ -123,7 +130,7 @@ export async function fetchPhotoSubmissions(
     .schema("cosme_check")
     .from("catalog_photo_submissions")
     .select(
-      "id, user_id, ean, brand, name, category, photo_path_1, photo_path_2, status, created_at, reviewed_at",
+      "id, user_id, ean, brand, name, category, photo_path_1, photo_path_2, status, created_at, reviewed_at, extracted_inci, extracted_name, extracted_brand",
     )
     .order("created_at", { ascending: false })
     .limit(Math.min(limit, 500));
@@ -145,10 +152,28 @@ export async function fetchPhotoSubmissions(
     status: PhotoSubmissionStatus;
     created_at: string;
     reviewed_at: string | null;
+    extracted_inci: string | null;
+    extracted_name: string | null;
+    extracted_brand: string | null;
   };
   const rows = data as Raw[];
   const ids = rows.map((r) => r.user_id).filter((id): id is string => !!id);
   const identities = await resolveIdentities(ids);
+
+  // Quels EAN sont DÉJÀ enrichis au catalogue (INCI présent) ? → distingue les
+  // contributions à décrypter+publier des simples ajouts de photo.
+  const eans = Array.from(new Set(rows.map((r) => r.ean).filter((e): e is string => !!e)));
+  const hasInciByEan = new Map<string, boolean>();
+  if (eans.length > 0) {
+    const { data: cats } = await sb
+      .schema("cosme_check")
+      .from("catalog")
+      .select("ean, ingredients_text")
+      .in("ean", eans);
+    for (const c of (cats ?? []) as Array<{ ean: string; ingredients_text: string | null }>) {
+      hasInciByEan.set(c.ean, !!c.ingredients_text && c.ingredients_text.trim().length >= 5);
+    }
+  }
 
   const publicUrl = (path: string) =>
     sb.storage.from(BUCKET).getPublicUrl(path).data.publicUrl;
@@ -171,6 +196,10 @@ export async function fetchPhotoSubmissions(
       status: r.status,
       created_at: r.created_at,
       reviewed_at: r.reviewed_at,
+      extracted_inci: r.extracted_inci,
+      extracted_name: r.extracted_name,
+      extracted_brand: r.extracted_brand,
+      catalog_has_inci: r.ean ? (hasInciByEan.get(r.ean) ?? false) : false,
     };
   });
 }

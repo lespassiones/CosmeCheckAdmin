@@ -1,9 +1,9 @@
 "use client";
 
 import { useState, useTransition } from "react";
-import { Check, X, ImageOff, Pencil } from "lucide-react";
+import { Check, X, ImageOff, Pencil, ScanText, Sparkles, Loader2 } from "lucide-react";
 import { toast } from "sonner";
-import { approvePhotoSubmission, rejectPhotoSubmission } from "./actions";
+import { approvePhotoSubmission, rejectPhotoSubmission, ocrSubmission, publishSubmission } from "./actions";
 import type { PhotoSubmissionRow } from "@/lib/queries/productModeration";
 import { cn, formatDateTime } from "@/lib/utils";
 
@@ -28,6 +28,47 @@ export function PhotoModerationCard({ row }: { row: PhotoSubmissionRow }) {
 
   const isPending = row.status === "pending";
   const canEdit = isPending || editing;
+
+  // Contribution à décrypter : produit avec EAN mais pas encore d'INCI au catalogue.
+  const showPublish = isPending && !!row.ean && !row.catalog_has_inci;
+  const [inci, setInci] = useState(row.extracted_inci ?? "");
+  const [pName, setPName] = useState(row.extracted_name ?? row.name ?? "");
+  const [pBrand, setPBrand] = useState(row.extracted_brand ?? row.brand ?? "");
+  const [pCategory, setPCategory] = useState(row.category ?? "");
+  const [ocrLoading, setOcrLoading] = useState(false);
+
+  function runOcr() {
+    setOcrLoading(true);
+    startTransition(async () => {
+      const r = await ocrSubmission(row.id);
+      setOcrLoading(false);
+      if (r.ok) {
+        if (r.inci) setInci(r.inci);
+        if (r.name) setPName(r.name);
+        if (r.brand) setPBrand(r.brand);
+        toast.success("Ingrédients lus. Relis / corrige puis publie.");
+      } else toast.error(r.error);
+    });
+  }
+
+  function publish() {
+    startTransition(async () => {
+      const r = await publishSubmission({
+        submissionId: row.id,
+        ean: row.ean ?? "",
+        name: pName,
+        brand: pBrand,
+        inci,
+        category: pCategory,
+        imagePath: chosen,
+      });
+      if (r.ok) toast.success(`Publié au catalogue · score ${r.score}/20.`);
+      else toast.error(r.error);
+    });
+  }
+
+  const fieldCls =
+    "w-full rounded-lg border border-black/10 bg-white px-2.5 py-1.5 text-[12.5px] outline-none focus:border-rose-300";
 
   function approve() {
     startTransition(async () => {
@@ -103,6 +144,50 @@ export function PhotoModerationCard({ row }: { row: PhotoSubmissionRow }) {
         </p>
         <p className="text-[11px] text-muted-foreground/70">{formatDateTime(row.created_at)}</p>
       </div>
+
+      {/* Contribution scan : OCR → relecture → publication au catalogue */}
+      {showPublish && (
+        <div className="mt-3 rounded-xl bg-rose-50/60 p-3 ring-1 ring-rose-200/50">
+          <p className="mb-2 text-[12px] font-semibold text-rose-700">
+            Décrypter &amp; publier au catalogue
+          </p>
+          <button
+            type="button"
+            onClick={runOcr}
+            disabled={pending || ocrLoading}
+            className="btn-secondary mb-2 w-full justify-center text-[13px] disabled:opacity-50"
+          >
+            {ocrLoading ? <Loader2 className="h-4 w-4 animate-spin" /> : <ScanText className="h-4 w-4" />}
+            Lire les ingrédients (OCR)
+          </button>
+          <div className="grid grid-cols-2 gap-2">
+            <input value={pName} onChange={(e) => setPName(e.target.value)} placeholder="Nom" className={fieldCls} />
+            <input value={pBrand} onChange={(e) => setPBrand(e.target.value)} placeholder="Marque" className={fieldCls} />
+          </div>
+          <input
+            value={pCategory}
+            onChange={(e) => setPCategory(e.target.value)}
+            placeholder="Catégorie (slug, optionnel)"
+            className={`${fieldCls} mt-2`}
+          />
+          <textarea
+            value={inci}
+            onChange={(e) => setInci(e.target.value)}
+            placeholder="Liste INCI : Aqua, Glycerin, Niacinamide, …"
+            rows={4}
+            className={`${fieldCls} mt-2 resize-y`}
+          />
+          <button
+            type="button"
+            onClick={publish}
+            disabled={pending || inci.trim().length < 20}
+            className="btn-primary mt-2 w-full justify-center text-[13px] disabled:opacity-50"
+          >
+            <Sparkles className="h-4 w-4" />
+            Calculer &amp; Publier
+          </button>
+        </div>
+      )}
 
       {/* Actions */}
       {canEdit ? (
