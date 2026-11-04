@@ -13,6 +13,7 @@ import { StatCard } from "@/components/StatCard";
 import { DailyTrendChart } from "@/components/charts/DailyTrendChart";
 import { StatCardsRow, ChartCardSkeleton, CardSkeleton } from "@/components/Skeletons";
 import { fetchOverviewKpis, fetchAiToday, fetchDailySeries } from "@/lib/queries/overview";
+import { ensureFreshCosts } from "@/lib/openai/costs";
 import { formatInt, formatUSD } from "@/lib/utils";
 import { AiHealthChecks } from "./AiHealthChecks";
 
@@ -121,6 +122,9 @@ async function OverviewKpis() {
 }
 
 async function DailySeriesCharts() {
+  // La courbe de coût lit openai_cost_daily, qui ne se remplissait qu'en
+  // visitant /ai : sans visite, elle restait à plat (gelée du 27/10 au 04/11/2026).
+  await ensureFreshCosts();
   const series = await fetchDailySeries(30);
   return (
     <div className="mb-8 grid grid-cols-1 gap-4 lg:grid-cols-3">
