@@ -13,6 +13,7 @@ import {
 } from "@/lib/queries/feedback";
 import { cn, formatInt, formatDateTime } from "@/lib/utils";
 import { FeedbackSectionTabs } from "@/components/FeedbackSectionTabs";
+import { countBrandSubmissions } from "@/lib/queries/brandSubmissions";
 import { countPendingModeration } from "@/lib/queries/productModeration";
 
 export const metadata = { title: "Retours" };
@@ -41,6 +42,7 @@ export default async function FeedbackPage({ searchParams }: { searchParams: Sea
   const kind = normaliseKind(sp.kind);
   const rating = normaliseRating(sp.rating);
   const pending = await countPendingModeration();
+  const brandCounts = await countBrandSubmissions();
 
   return (
     <>
@@ -49,7 +51,7 @@ export default async function FeedbackPage({ searchParams }: { searchParams: Sea
         subtitle="Avis (notes 1-5) et messages reçus via la page Contact."
         info="Avis, notes (1 à 5) et messages laissés via la page Contact du site. Sert à suivre la satisfaction et repérer les problèmes remontés."
       />
-      <FeedbackSectionTabs active="reviews" pendingPhotos={pending.photos} />
+      <FeedbackSectionTabs active="reviews" pendingPhotos={pending.photos} pendingBrands={brandCounts.pending} />
 
       <SectionHeader title="Synthèse" subtitle="Tous les retours confondus" />
       <Suspense fallback={<StatCardsRow count={4} />}>

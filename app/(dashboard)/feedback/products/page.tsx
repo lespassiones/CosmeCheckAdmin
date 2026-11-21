@@ -7,6 +7,7 @@ import { EmptyState } from "@/components/EmptyState";
 import { Paginator } from "@/components/Paginator";
 import { TableSkeleton } from "@/components/Skeletons";
 import { FeedbackSectionTabs } from "@/components/FeedbackSectionTabs";
+import { countBrandSubmissions } from "@/lib/queries/brandSubmissions";
 import {
   fetchProductErrorReports,
   fetchPhotoSubmissions,
@@ -36,6 +37,7 @@ export default async function ProductModerationPage({
   const photoStatus = normalisePhotoStatus(sp.photos);
   const page = Math.max(1, Number(sp.page) || 1);
   const pending = await countPendingModeration();
+  const brandCounts = await countBrandSubmissions();
 
   return (
     <>
@@ -44,7 +46,7 @@ export default async function ProductModerationPage({
         subtitle="Signalements d'erreur et photos proposées sur les produits analysés."
         info="Signalements d'erreur (nom, marque, composition) et photos proposées par les utilisateurs sur un produit. À modérer avant d'intégrer les corrections au catalogue."
       />
-      <FeedbackSectionTabs active="products" pendingPhotos={pending.photos} />
+      <FeedbackSectionTabs active="products" pendingPhotos={pending.photos} pendingBrands={brandCounts.pending} />
 
       {/* Photos en attente / traitées */}
       <SectionHeader
